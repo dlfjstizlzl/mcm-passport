@@ -1,12 +1,17 @@
 spring:
   application:
     name: passport
-  profiles:
-    include: secret
+  config:
+    import: optional:classpath:application-secret.yml
   datasource:
-    url: jdbc:mysql://localhost:3306/mcm_passport
-    username: root
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mcm_passport}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+
+server:
+  port: ${SERVER_PORT:8080}
