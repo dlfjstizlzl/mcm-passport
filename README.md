@@ -51,3 +51,31 @@ com.mcm.passport
 소유입니다. 공통 파일은 변경 전에 인터페이스를 합의하고 기능 커밋과 분리합니다.
 BE2는 BE1 Repository를 직접 조합하지 않고 공개 Service 또는 명시적인 도메인
 인터페이스를 사용합니다.
+
+
+## Commit Convention
+
+- 커밋은 **기능 단위**로 작성한다.
+- Commit Message Convention을 반드시 준수한다.
+- 커밋 메시지는 `<type>: <작업 내용>` 형식으로 작성한다.
+
+### Commit Type
+
+| Type | 설명 |
+|------|------|
+| `feat` | 새로운 기능 추가 |
+| `fix` | 버그 수정 |
+| `refactor` | 기능 변화 없이 코드 개선 |
+| `test` | 테스트 코드 추가 및 수정 |
+| `docs` | 문서 추가 및 수정 |
+| `chore` | 설정, 빌드 등 기타 작업 |
+
+### Example
+
+```text
+feat: add passport session API
+fix: prevent duplicate product tag
+refactor: simplify boarding pass service
+test: add passport session service test
+docs: update README
+chore: configure H2 test database
