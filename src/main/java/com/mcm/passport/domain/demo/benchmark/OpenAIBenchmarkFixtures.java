@@ -3,6 +3,7 @@ package com.mcm.passport.domain.demo.benchmark;
 import com.mcm.passport.domain.journey.service.JourneyDataSnapshot;
 import com.mcm.passport.domain.style.entity.RecommendedProduct;
 import java.util.List;
+import java.util.Objects;
 
 public final class OpenAIBenchmarkFixtures {
 
@@ -62,5 +63,19 @@ public final class OpenAIBenchmarkFixtures {
 
 	public static List<String> caseNames() {
 		return CASE_NAMES;
+	}
+
+	public static List<OpenAIBenchmarkCase> select(List<String> caseNames) {
+		Objects.requireNonNull(caseNames, "caseNames must not be null");
+		return caseNames.stream()
+				.map(OpenAIBenchmarkFixtures::findByName)
+				.toList();
+	}
+
+	private static OpenAIBenchmarkCase findByName(String caseName) {
+		return CASES.stream()
+				.filter(benchmarkCase -> benchmarkCase.name().equals(caseName))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("unknown benchmark case: " + caseName));
 	}
 }

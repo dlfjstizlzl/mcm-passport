@@ -15,11 +15,12 @@ public final class OpenAIBenchmarkPreflight {
 		output.println("Benchmark enabled: " + yesNo(config.enabled()));
 		output.println("Live confirmation: " + yesNo(config.confirmLive()));
 		output.println("Models: " + config.models());
-		output.println("Cases: " + OpenAIBenchmarkFixtures.caseNames());
+		output.println("Cases: " + config.caseNames());
 		output.println("Repetitions: " + config.repetitions());
 		output.println("Reasoning effort: " + config.reasoningEffort().value());
 		output.println("Planned calls: " + config.plannedCalls());
 		output.println("Maximum calls: " + config.maxCalls());
+		output.println("Maximum output tokens: " + config.maxOutputTokens());
 		output.println("Maximum estimated USD: " + config.maxEstimatedUsd().toPlainString());
 		output.println("Report directory: " + reportDirectory);
 	}

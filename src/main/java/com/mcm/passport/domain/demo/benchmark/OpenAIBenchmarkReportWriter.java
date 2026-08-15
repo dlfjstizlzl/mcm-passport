@@ -52,7 +52,8 @@ public final class OpenAIBenchmarkReportWriter {
 				"recommendedProduct", "styleMood", "background", "matchScore", "usedFallback",
 				"inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens",
 				"reasoningTokens", "totalTokens", "providerLatencyMs", "endToEndLatencyMs",
-				"estimatedCostUsd", "success", "errorCategory"
+				"estimatedCostUsd", "success", "errorCategory", "failureType", "failureStage",
+				"safeFailureDetail", "httpStatus", "errorCode", "requestId", "responseModel"
 		));
 		for (OpenAIBenchmarkRun run : runs) {
 			rows.add(csvRow(
@@ -60,7 +61,9 @@ public final class OpenAIBenchmarkReportWriter {
 					run.recommendedProduct(), run.styleMood(), run.background(), run.matchScore(),
 					run.usedFallback(), run.inputTokens(), run.cachedInputTokens(), run.cacheWriteTokens(),
 					run.outputTokens(), run.reasoningTokens(), run.totalTokens(), run.providerLatencyMs(),
-					run.endToEndLatencyMs(), run.estimatedCostUsd(), run.success(), run.errorCategory()
+					run.endToEndLatencyMs(), run.estimatedCostUsd(), run.success(), run.errorCategory(),
+					run.failureType(), run.failureStage(), run.safeFailureDetail(), run.httpStatus(),
+					run.errorCode(), run.requestId(), run.responseModel()
 			));
 		}
 		return String.join(System.lineSeparator(), rows) + System.lineSeparator();
@@ -127,11 +130,42 @@ public final class OpenAIBenchmarkReportWriter {
 			}
 			builder.append("\nProductTag comparison: `").append(model.productTagDifference()).append("`\n")
 					.append("\nMetric sample counts: `").append(model.aggregate().metricSampleCounts()).append("`\n")
+					.append("\nResponse model distribution: `")
+					.append(model.aggregate().responseModelDistribution()).append("`\n")
 					.append("\nCity distribution: `").append(model.aggregate().cityCodeDistribution()).append("`\n")
 					.append("\nProduct distribution: `").append(model.aggregate().recommendedProductDistribution()).append("`\n")
 					.append("\nMood distribution: `").append(model.aggregate().styleMoodDistribution()).append("`\n");
 		}
+
+		builder.append("\n## Safe failure diagnostics\n\n");
+		if (summary.failures().isEmpty()) {
+			builder.append("No failed OpenAI benchmark runs were recorded.\n");
+		}
+		else {
+			builder.append("Exception messages, prompts, raw response bodies, Journey text, and API keys are excluded.\n\n")
+					.append("| Run | Case | Configured model | Response model | Category | Type | Stage | Safe detail | HTTP | Error code | Request ID |\n")
+					.append("|---:|---|---|---|---|---|---|---|---:|---|---|\n");
+			for (OpenAIBenchmarkSummary.FailureSummary failure : summary.failures()) {
+				builder.append('|').append(failure.runNumber())
+						.append('|').append(markdownValue(failure.caseName()))
+						.append('|').append(markdownValue(failure.model()))
+						.append('|').append(markdownValue(failure.responseModel()))
+						.append('|').append(markdownValue(failure.errorCategory()))
+						.append('|').append(markdownValue(failure.failureType()))
+						.append('|').append(markdownValue(failure.failureStage()))
+						.append('|').append(markdownValue(failure.safeFailureDetail()))
+						.append('|').append(markdownValue(failure.httpStatus()))
+						.append('|').append(markdownValue(failure.errorCode()))
+						.append('|').append(markdownValue(failure.requestId())).append("|\n");
+			}
+		}
 		return builder.toString();
+	}
+
+	private String markdownValue(Object value) {
+		return value == null
+				? "N/A"
+				: value.toString().replace("\\", "\\\\").replace("|", "\\|");
 	}
 
 	private String csvRow(Object... fields) {

@@ -1,12 +1,20 @@
 package com.mcm.passport.domain.style.analysis.openai;
 
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
+import com.openai.core.JsonField;
 import com.openai.models.responses.ResponseUsage;
 
 import java.util.Objects;
 import java.util.Optional;
 
 public class OpenAIResponseUsageMapper {
+
+	public OpenAIUsageMetrics map(JsonField<ResponseUsage> usageField) {
+		Objects.requireNonNull(usageField, "OpenAI response usage field must not be null");
+		return usageField.asKnown()
+				.map(this::mapKnownFields)
+				.orElseGet(OpenAIUsageMetrics::allUnavailable);
+	}
 
 	public OpenAIUsageMetrics map(Optional<ResponseUsage> optionalUsage) {
 		Objects.requireNonNull(optionalUsage, "OpenAI response usage Optional must not be null");

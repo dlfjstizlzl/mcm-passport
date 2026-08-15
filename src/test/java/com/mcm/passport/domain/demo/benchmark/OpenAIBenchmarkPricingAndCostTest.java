@@ -59,6 +59,41 @@ class OpenAIBenchmarkPricingAndCostTest {
 	}
 
 	@Test
+	void conservativelyPricesAllInputWhenOptionalCacheBreakdownIsUnavailable() {
+		OpenAIUsageMetrics usage = new OpenAIUsageMetrics(
+				1_000L,
+				null,
+				null,
+				200L,
+				null,
+				1_200L
+		);
+
+		assertThat(calculator.calculateUsd(usage, "gpt-5.6-luna", pricing))
+				.hasValueSatisfying(cost -> assertThat(cost).isEqualByComparingTo("0.00049"));
+		assertThat(usage.cachedInputTokens()).isNull();
+		assertThat(usage.cacheWriteTokens()).isNull();
+		assertThat(usage.reasoningTokens()).isNull();
+	}
+
+	@Test
+	void returnsUnavailableWhenAnyCoreUsageMetricIsMissing() {
+		OpenAIUsageMetrics missingInput = new OpenAIUsageMetrics(
+				null, null, null, 20L, null, null
+		);
+		OpenAIUsageMetrics missingOutput = new OpenAIUsageMetrics(
+				100L, null, null, null, null, null
+		);
+		OpenAIUsageMetrics missingTotal = new OpenAIUsageMetrics(
+				100L, 0L, 0L, 20L, 0L, null
+		);
+
+		assertThat(calculator.calculateUsd(missingInput, "gpt-5.6-luna", pricing)).isEmpty();
+		assertThat(calculator.calculateUsd(missingOutput, "gpt-5.6-luna", pricing)).isEmpty();
+		assertThat(calculator.calculateUsd(missingTotal, "gpt-5.6-luna", pricing)).isEmpty();
+	}
+
+	@Test
 	void returnsUnavailableForMissingUsagePriceOrUnknownModel() {
 		OpenAIUsageMetrics completeUsage = new OpenAIUsageMetrics(
 				100L, 10L, 5L, 20L, 2L, 120L

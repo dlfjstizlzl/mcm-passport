@@ -10,14 +10,15 @@ public class OpenAIMeteredException extends RuntimeException {
 	private final OpenAIUsageMetrics usage;
 	private final String model;
 	private final long providerLatencyMs;
+	private final OpenAIFailureDiagnostic diagnostic;
 
 	public OpenAIMeteredException(
-			Throwable cause,
 			OpenAIUsageMetrics usage,
 			String model,
-			long providerLatencyMs
+			long providerLatencyMs,
+			OpenAIFailureDiagnostic diagnostic
 	) {
-		super("OpenAI style analysis request failed", Objects.requireNonNull(cause, "cause must not be null"));
+		super("OpenAI style analysis request failed");
 		this.usage = Objects.requireNonNull(usage, "usage must not be null");
 		if (model == null || model.isBlank()) {
 			throw new IllegalArgumentException("OpenAI response model must not be blank");
@@ -27,6 +28,7 @@ public class OpenAIMeteredException extends RuntimeException {
 			throw new IllegalArgumentException("OpenAI provider latency must not be negative");
 		}
 		this.providerLatencyMs = providerLatencyMs;
+		this.diagnostic = Objects.requireNonNull(diagnostic, "diagnostic must not be null");
 	}
 
 	public OpenAIUsageMetrics usage() {
@@ -39,5 +41,9 @@ public class OpenAIMeteredException extends RuntimeException {
 
 	public long providerLatencyMs() {
 		return providerLatencyMs;
+	}
+
+	public OpenAIFailureDiagnostic diagnostic() {
+		return diagnostic;
 	}
 }

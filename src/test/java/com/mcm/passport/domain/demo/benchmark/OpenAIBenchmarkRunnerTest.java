@@ -4,6 +4,9 @@ import com.mcm.passport.domain.style.analysis.OpenAIStyleAnalysisProvider;
 import com.mcm.passport.domain.style.analysis.RuleBasedStyleFallback;
 import com.mcm.passport.domain.style.analysis.StyleAnalysisValidator;
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureDetail;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureDiagnostic;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureStage;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIMeteredException;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIReasoningEffort;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisGateway;
@@ -20,11 +23,13 @@ import com.openai.core.http.Headers;
 import com.openai.errors.NotFoundException;
 import com.openai.errors.UnauthorizedException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -55,6 +60,7 @@ class OpenAIBenchmarkRunnerTest {
 
 		assertThat(execution.runs()).singleElement().satisfies(run -> {
 			assertThat(run.model()).isEqualTo("gpt-5.6-luna");
+			assertThat(run.responseModel()).isEqualTo("gpt-5.6-luna");
 			assertThat(run.reasoningEffort()).isEqualTo("none");
 			assertThat(run.inputTokens()).isEqualTo(1_000L);
 			assertThat(run.cachedInputTokens()).isEqualTo(100L);
@@ -66,12 +72,112 @@ class OpenAIBenchmarkRunnerTest {
 			assertThat(run.endToEndLatencyMs()).isEqualTo(5L);
 			assertThat(run.success()).isTrue();
 			assertThat(run.usedFallback()).isFalse();
+			assertThat(run.failureType()).isNull();
+			assertThat(run.failureStage()).isNull();
+			assertThat(run.safeFailureDetail()).isNull();
 		});
 		assertThat(gateway.requests()).singleElement().satisfies(request -> {
 			assertThat(request.model()).isEqualTo("gpt-5.6-luna");
 			assertThat(request.effort()).isEqualTo(OpenAIReasoningEffort.NONE);
-			assertThat(request.maxOutputTokens()).isEqualTo(OpenAIBenchmarkRunner.MAX_OUTPUT_TOKENS);
+			assertThat(request.maxOutputTokens()).isEqualTo(OpenAIBenchmarkConfig.DEFAULT_MAX_OUTPUT_TOKENS);
 		});
+	}
+
+	@Test
+	void succeedsWithCoreUsageWhenOptionalBreakdownMetricsAreUnavailable() {
+		OpenAIUsageMetrics coreUsage = new OpenAIUsageMetrics(
+				1_000L,
+				null,
+				null,
+				100L,
+				null,
+				1_100L
+		);
+		FakeGateway gateway = FakeGateway.withBehavior((prompt, request) ->
+				new OpenAIStyleAnalysisGatewayResult(
+						validOutput(),
+						coreUsage,
+						request.model(),
+						17L
+				)
+		);
+		OpenAIBenchmarkConfig pilot = new OpenAIBenchmarkConfig(
+				true,
+				true,
+				List.of("gpt-5.6-luna"),
+				List.of("CASE_A_WITHOUT_PRODUCT_TAG"),
+				1,
+				1,
+				512L,
+				new BigDecimal("0.10"),
+				OpenAIReasoningEffort.NONE,
+				Path.of("build/reports/openai-benchmark-test")
+		);
+
+		OpenAIBenchmarkExecution execution = runner(gateway).run(pilot);
+
+		assertThat(execution.terminationReason()).isEqualTo(OpenAIBenchmarkErrorCategory.NONE);
+		assertThat(execution.runs()).singleElement().satisfies(run -> {
+			assertThat(run.success()).isTrue();
+			assertThat(run.inputTokens()).isEqualTo(1_000L);
+			assertThat(run.outputTokens()).isEqualTo(100L);
+			assertThat(run.totalTokens()).isEqualTo(1_100L);
+			assertThat(run.cachedInputTokens()).isNull();
+			assertThat(run.cacheWriteTokens()).isNull();
+			assertThat(run.reasoningTokens()).isNull();
+			assertThat(run.estimatedCostUsd()).isNotNull().isPositive();
+			assertThat(run.errorCategory()).isEqualTo(OpenAIBenchmarkErrorCategory.NONE);
+		});
+	}
+
+	@Test
+	void selectedLunaCaseACompletesExactlyOneCallWithoutHittingTheCallCap() {
+		FakeGateway gateway = FakeGateway.succeeding();
+		OpenAIBenchmarkConfig pilot = new OpenAIBenchmarkConfig(
+				true,
+				true,
+				List.of("gpt-5.6-luna"),
+				List.of("CASE_A_WITHOUT_PRODUCT_TAG"),
+				1,
+				1,
+				4_096L,
+				new BigDecimal("0.10"),
+				OpenAIReasoningEffort.NONE,
+				Path.of("build/reports/openai-benchmark-test")
+		);
+
+		OpenAIBenchmarkExecution execution = runner(gateway).run(pilot);
+
+		assertThat(execution.terminationReason()).isEqualTo(OpenAIBenchmarkErrorCategory.NONE);
+		assertThat(execution.runs()).singleElement().satisfies(run ->
+				assertThat(run.caseName()).isEqualTo("CASE_A_WITHOUT_PRODUCT_TAG")
+		);
+		assertThat(gateway.requests()).singleElement().satisfies(request ->
+				assertThat(request.maxOutputTokens()).isEqualTo(4_096L)
+		);
+	}
+
+	@Test
+	void configuredOutputLimitIsIncludedInThePreCallCostReservation() {
+		FakeGateway gateway = FakeGateway.succeeding();
+		OpenAIBenchmarkConfig pilot = new OpenAIBenchmarkConfig(
+				true,
+				true,
+				List.of("gpt-5.6-luna"),
+				List.of("CASE_A_WITHOUT_PRODUCT_TAG"),
+				1,
+				1,
+				1_024L,
+				new BigDecimal("0.003"),
+				OpenAIReasoningEffort.NONE,
+				Path.of("build/reports/openai-benchmark-test")
+		);
+
+		OpenAIBenchmarkExecution execution = runner(gateway).run(pilot);
+
+		assertThat(execution.runs()).isEmpty();
+		assertThat(gateway.requests()).isEmpty();
+		assertThat(execution.terminationReason()).isEqualTo(OpenAIBenchmarkErrorCategory.COST_CAP_REACHED);
 	}
 
 	@Test
@@ -117,20 +223,32 @@ class OpenAIBenchmarkRunnerTest {
 	}
 
 	@Test
-	void preservesUsageAndLatencyFromAMeteredFailureWithoutRawResponseData() {
+	void preservesUsageLatencyAndSafeDiagnosticsWithoutLeakingFailureContent(
+			@TempDir Path reportDirectory
+	) throws Exception {
+		String rawResponseSentinel = "RAW_RESPONSE_SECRET_SENTINEL";
+		String apiKeySentinel = "API_KEY_SECRET_SENTINEL";
 		OpenAIUsageMetrics failureUsage = new OpenAIUsageMetrics(
 				900L, 100L, 25L, 80L, 15L, 980L
 		);
 		FakeGateway gateway = FakeGateway.withBehavior((prompt, request) -> {
 			throw new OpenAIMeteredException(
-					new IllegalStateException("safe offline failure"),
 					failureUsage,
-					request.model(),
-					44L
+					"gpt-5.6-luna-response",
+					44L,
+					OpenAIFailureDiagnostic.of(
+							new IllegalStateException(rawResponseSentinel + " " + apiKeySentinel),
+							OpenAIFailureStage.STRUCTURED_OUTPUT_DESERIALIZATION,
+							OpenAIFailureDetail.STRUCTURED_OUTPUT_DESERIALIZATION_FAILED,
+							200,
+							null,
+							"req_safe_123"
+					)
 			);
 		});
+		RunnerHarness harness = runnerHarness(gateway);
 
-		OpenAIBenchmarkExecution execution = runner(gateway).run(config(
+		OpenAIBenchmarkExecution execution = harness.runner().run(config(
 				List.of("gpt-5.6-luna"), 1, 1, "1.00"
 		));
 
@@ -142,10 +260,113 @@ class OpenAIBenchmarkRunnerTest {
 			assertThat(run.reasoningTokens()).isEqualTo(15L);
 			assertThat(run.totalTokens()).isEqualTo(980L);
 			assertThat(run.providerLatencyMs()).isEqualTo(44L);
+			assertThat(run.responseModel()).isEqualTo("gpt-5.6-luna-response");
 			assertThat(run.estimatedCostUsd()).isNotNull().isPositive();
 			assertThat(run.usedFallback()).isTrue();
 			assertThat(run.success()).isFalse();
-			assertThat(run.errorCategory()).isEqualTo(OpenAIBenchmarkErrorCategory.FALLBACK);
+			assertThat(run.errorCategory()).isEqualTo(OpenAIBenchmarkErrorCategory.STRUCTURED_OUTPUT_PARSE);
+			assertThat(run.failureType()).isEqualTo("IllegalStateException");
+			assertThat(run.failureStage()).isEqualTo("STRUCTURED_OUTPUT_DESERIALIZATION");
+			assertThat(run.safeFailureDetail())
+					.isEqualTo("STRUCTURED_OUTPUT_DESERIALIZATION_FAILED");
+			assertThat(run.httpStatus()).isEqualTo(200);
+			assertThat(run.requestId()).isEqualTo("req_safe_123");
+		});
+
+		OpenAIBenchmarkSummary summary = OpenAIBenchmarkSummary.from(
+				execution,
+				OpenAIBenchmarkPricingSnapshot.standardShortContext()
+		);
+		new OpenAIBenchmarkReportWriter().write(reportDirectory, execution, summary);
+		String reports = String.join("\n",
+				Files.readString(reportDirectory.resolve(OpenAIBenchmarkReportWriter.RUNS_CSV)),
+				Files.readString(reportDirectory.resolve(OpenAIBenchmarkReportWriter.SUMMARY_JSON)),
+				Files.readString(reportDirectory.resolve(OpenAIBenchmarkReportWriter.SUMMARY_MARKDOWN))
+		);
+		assertThat(harness.output()).contains(
+				"failureType=IllegalStateException",
+				"failureStage=STRUCTURED_OUTPUT_DESERIALIZATION",
+				"safeFailureDetail=STRUCTURED_OUTPUT_DESERIALIZATION_FAILED"
+		);
+		assertThat(harness.output() + reports)
+				.doesNotContain(rawResponseSentinel, apiKeySentinel);
+	}
+
+	@Test
+	void meteredFailureWithoutUsageRemainsFailClosedAfterOneAttempt() {
+		FakeGateway gateway = FakeGateway.withBehavior((prompt, request) -> {
+			throw new OpenAIMeteredException(
+					OpenAIUsageMetrics.allUnavailable(),
+					request.model(),
+					44L,
+					OpenAIFailureDiagnostic.of(
+							new IllegalStateException("not retained"),
+							OpenAIFailureStage.STRUCTURED_OUTPUT_DESERIALIZATION,
+							OpenAIFailureDetail.STRUCTURED_OUTPUT_DESERIALIZATION_FAILED,
+							200,
+							null,
+							"req_safe_456"
+					)
+			);
+		});
+
+		OpenAIBenchmarkExecution execution = runner(gateway).run(config(
+				List.of("gpt-5.6-luna"), 5, 30, "1.00"
+		));
+
+		assertThat(execution.runs()).singleElement().satisfies(run -> {
+			assertThat(run.inputTokens()).isNull();
+			assertThat(run.outputTokens()).isNull();
+			assertThat(run.totalTokens()).isNull();
+			assertThat(run.estimatedCostUsd()).isNull();
+			assertThat(run.errorCategory()).isEqualTo(OpenAIBenchmarkErrorCategory.STRUCTURED_OUTPUT_PARSE);
+		});
+		assertThat(gateway.requests()).hasSize(1);
+		assertThat(execution.terminationReason())
+				.isEqualTo(OpenAIBenchmarkErrorCategory.COST_ESTIMATE_UNAVAILABLE);
+	}
+
+	@Test
+	void validationFailurePreservesAlreadyMeasuredUsageAndProviderLatency() {
+		FakeGateway gateway = FakeGateway.withBehavior((prompt, request) ->
+				new OpenAIStyleAnalysisGatewayResult(
+						new OpenAIStyleAnalysisOutput(
+								"INVALID_CITY",
+								RecommendedProduct.STARK_BACKPACK.name(),
+								StyleMood.AFTERDARK_MOVEMENT.name(),
+								CityBackground.BERLIN_AFTERDARK.name(),
+								"Offline invalid result",
+								91
+						),
+						COMPLETE_USAGE,
+						"gpt-5.6-luna-response",
+						37L
+				)
+		);
+
+		OpenAIBenchmarkExecution execution = runner(gateway).run(new OpenAIBenchmarkConfig(
+				true,
+				true,
+				List.of("gpt-5.6-luna"),
+				List.of("CASE_A_WITHOUT_PRODUCT_TAG"),
+				1,
+				1,
+				512L,
+				new BigDecimal("0.10"),
+				OpenAIReasoningEffort.NONE,
+				Path.of("build/reports/openai-benchmark-test")
+		));
+
+		assertThat(execution.runs()).singleElement().satisfies(run -> {
+			assertThat(run.inputTokens()).isEqualTo(COMPLETE_USAGE.inputTokens());
+			assertThat(run.outputTokens()).isEqualTo(COMPLETE_USAGE.outputTokens());
+			assertThat(run.totalTokens()).isEqualTo(COMPLETE_USAGE.totalTokens());
+			assertThat(run.providerLatencyMs()).isEqualTo(37L);
+			assertThat(run.responseModel()).isEqualTo("gpt-5.6-luna-response");
+			assertThat(run.errorCategory()).isEqualTo(OpenAIBenchmarkErrorCategory.VALIDATION);
+			assertThat(run.failureType()).isEqualTo("IllegalArgumentException");
+			assertThat(run.failureStage()).isEqualTo("VALIDATION");
+			assertThat(run.safeFailureDetail()).isEqualTo("VALIDATION_FAILED");
 		});
 	}
 

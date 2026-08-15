@@ -65,10 +65,11 @@ class OpenAIBenchmarkSummaryTest {
 				new BigDecimal("0.002")
 		);
 
-		OpenAIBenchmarkSummary.Aggregate aggregate = summary(
+		OpenAIBenchmarkSummary summary = summary(
 				List.of(success, fallback, otherFailure),
 				OpenAIBenchmarkErrorCategory.COST_ESTIMATE_UNAVAILABLE
-		).models().getFirst().aggregate();
+		);
+		OpenAIBenchmarkSummary.Aggregate aggregate = summary.models().getFirst().aggregate();
 
 		assertThat(aggregate.callCount()).isEqualTo(3);
 		assertThat(aggregate.successCount()).isEqualTo(1);
@@ -79,6 +80,9 @@ class OpenAIBenchmarkSummaryTest {
 		assertThat(aggregate.metricSampleCounts().get("estimatedCostUsd")).isEqualTo(2);
 		assertThat(aggregate.totalEstimatedCostUsd()).isNull();
 		assertThat(aggregate.cityCodeDistribution()).containsOnlyKeys("BERLIN");
+		assertThat(summary.failures())
+				.extracting(OpenAIBenchmarkSummary.FailureSummary::errorCategory)
+				.containsExactly("FALLBACK", "TIMEOUT");
 	}
 
 	@Test

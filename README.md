@@ -272,9 +272,41 @@ Souvenir POST는 최초 생성 시 `201 Created`, 동일 세션 재요청 시 �
 OpenAI 연동은 [Responses API text generation](https://developers.openai.com/api/docs/guides/text)과
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)를
 사용합니다. [공식 Java SDK](https://github.com/openai/openai-java)
-`com.openai:openai-java:4.51.0`의 typed Structured Outputs 방식으로
-`ResponseCreateParams.builder().text(OpenAIStyleAnalysisOutput.class)`를 호출하고, 파싱된
-`OpenAIStyleAnalysisOutput`을 `StyleAnalysisCandidate`로 변환합니다.
+`com.openai:openai-java:4.51.0`으로
+`ResponseCreateParams.builder().text(OpenAIStyleAnalysisOutput.class)`를 호출합니다. 이 호출이
+생성한 `StructuredResponseCreateParams.rawParams()`에는 server-side JSON Schema 설정이 그대로
+포함됩니다. Gateway가 일반 `Response`를 먼저 받도록 분리되어도 Structured Outputs를 단순한
+JSON prompt로 대체하지 않으며, 서버의 schema enforcement를 유지합니다.
+
+SDK 4.51.0의 typed `create`는 먼저 일반 `Response`를 생성한 뒤 이를
+`StructuredResponse<T>`로 감싸며, 사용자 DTO 변환은 `outputText()`를 읽을 때 지연 실행됩니다.
+이 프로젝트는 그 공식 흐름을 명시적으로 분리해 usage를 먼저 보존합니다. 실제 처리 순서와
+진단 stage 대응은 다음과 같습니다.
+
+| 순서 | 진단 stage | 처리 내용 |
+|---:|---|---|
+| 1 | `HTTP_REQUEST` | `withRawResponse().create(structuredParams.rawParams())`로 HTTP 응답 handle을 받고 status와 request ID를 확보합니다. |
+| 2 | `SDK_RESPONSE_DESERIALIZATION` | `HttpResponseFor<Response>.parse()`로 일반 Responses API `Response`를 해석합니다. |
+| 3 | `USAGE_MAPPING` | 응답의 input, cached, cache-write, output, reasoning, total token usage를 benchmark metric으로 변환합니다. |
+| 4 | `RESPONSE_METADATA` | 응답 model과 안전한 HTTP metadata를 확정합니다. |
+| 5 | `STRUCTURED_OUTPUT_DESERIALIZATION` | 일반 `Response`를 `StructuredResponse<OpenAIStyleAnalysisOutput>`으로 감싼 뒤 output text를 사용자 DTO로 지연 파싱합니다. |
+| 6 | `VALIDATION` | 파싱된 DTO를 `StyleAnalysisCandidate`로 변환하고 기존 `StyleAnalysisValidator`로 검증합니다. |
+
+일반 응답 status가 `INCOMPLETE`이고 reason이 `MAX_OUTPUT_TOKENS`이면 DTO 파싱 전에
+`STRUCTURED_OUTPUT_DESERIALIZATION` / `RESPONSE_INCOMPLETE_MAX_OUTPUT_TOKENS`로 기록합니다.
+이 경로에서도 앞서 읽은 usage와 metadata는 보존되므로 단순 DTO 불일치와 token 상한으로 인한
+응답 중단을 구분할 수 있습니다.
+
+일반 `Response`까지 정상적으로 확보했다면 이후 Structured Output DTO 파싱이 실패해도 먼저
+읽은 usage, model, provider latency를 실패 결과에 보존합니다. 반대로 SDK가 일반 `Response`
+자체를 해석하지 못하면 typed usage를 얻을 수 없으므로 임의로 raw body를 재해석하지 않습니다.
+이 경우 usage를 측정 불가로 유지하고 비용 guard가 fail-closed로 benchmark를 중단합니다.
+
+실패 결과에는 `failureType`, `failureStage`, `safeFailureDetail`, `httpStatus`, `errorCode`,
+`requestId`만 진단 metadata로 기록합니다. SDK의 Structured Output 변환 예외 message에는 응답
+JSON이 포함될 수 있으므로 `exception.getMessage()`를 report나 로그에 복사하지 않습니다.
+`safeFailureDetail`은 미리 정의한 비민감 진단 문구만 허용하며 raw response body, prompt,
+Journey 원문, description, API key는 저장하거나 출력하지 않습니다.
 
 기본 provider는 `mock`입니다. `mcm.style.analysis.provider=openai`일 때만
 `OpenAIStyleAnalysisProvider`, Responses gateway, OpenAI client bean이 활성화됩니다.
@@ -362,17 +394,90 @@ MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true
 - planned calls: 3 models × 2 cases × 5 = 최대 30회
 - call cap: 30
 - estimated-cost cap: USD 1.00
+- maximum output tokens: 512
+
+`MCM_OPENAI_BENCHMARK_CASES`는 실행할 fixture의 정확한 대소문자 이름을 comma-separated
+목록으로 지정하며 기본값은 Case A와 Case B 모두입니다. 현재 허용값은
+`CASE_A_WITHOUT_PRODUCT_TAG`, `CASE_B_WITH_PRODUCT_TAG`입니다.
+`MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS`는 실제 요청과 다음 호출의 비용 예약에 함께 사용하는
+상한이며 기본값은 512, 허용 범위는 1~25,000입니다.
+
+[GPT-5.6 Luna 모델 문서](https://developers.openai.com/api/docs/models/gpt-5.6-luna)는
+`reasoning.effort=none`과 Structured Outputs를 지원합니다. 따라서 첫 진단 pilot과 baseline은
+`none`을 유지합니다. [`max_output_tokens`](https://developers.openai.com/api/docs/guides/reasoning)는
+reasoning token, visible output, non-visible formatting token을 모두 제한하고, 부족하면 응답이
+`incomplete`가 될 수 있습니다. 기본 30회 baseline은 기존 512를 유지하되 첫 1회 진단에서는
+truncation 가능성을 줄이기 위해 4,096을 명시합니다.
 
 비용 guard는 고정 fixture의 rendered prompt가 4,096 UTF-8 bytes 이하인지 실행 전에 검증하고,
 첫 호출부터 현재 모델의 8,192 input-token 예약분을 input/cache-write
-중 더 비싼 요율로 계산하고, 요청에 실제 `maxOutputTokens=512`를 적용합니다. 이
+중 더 비싼 요율로 계산하고, 설정된 maximum output token 전부를 output 요율로 예약합니다. 이
 예약 비용과 기존 누적 추정액의 합이 cap을 넘으면 다음 유료 호출 전에 중단합니다.
 이는 Standard short-context snapshot에 기반한 보수적 benchmark 안전장치이지 실제 청구 상한을
 보증하는 billing control은 아닙니다.
 
-실제 benchmark 결과 상태는 현재 **`PENDING_LOCAL_LIVE_RUN`**입니다. Cloud, 자동 테스트,
+이번 수정 이후 diagnostic pilot 재검증 상태는 **`PENDING_LOCAL_LIVE_RUN`**입니다. Cloud, 자동 테스트,
 GitHub Actions에서는 live benchmark를 실행하지 않으며 token, latency, 비용, 모델 결과를
 추측해서 기록하지 않습니다.
+
+##### Luna / Case A 1회 diagnostic pilot
+
+첫 재검증은 30회 baseline이 아니라 Luna와 ProductTag가 없는 Case A를 정확히 한 번만
+호출합니다. Windows CMD에서 프로젝트 경로로 이동한 뒤 아래 블록을 그대로 실행합니다.
+API key 값은 출력하지 않고 존재 여부만 확인합니다.
+
+```bat
+cd /d "C:\Users\user\mcm-passport"
+if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenAI API key configured: no)
+
+set "MCM_OPENAI_BENCHMARK=true"
+set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true"
+set "MCM_OPENAI_BENCHMARK_MODELS=gpt-5.6-luna"
+set "MCM_OPENAI_BENCHMARK_CASES=CASE_A_WITHOUT_PRODUCT_TAG"
+set "MCM_OPENAI_BENCHMARK_REPETITIONS=1"
+set "MCM_OPENAI_BENCHMARK_MAX_CALLS=1"
+set "MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS=4096"
+set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=0.10"
+set "MCM_OPENAI_REASONING_EFFORT=none"
+set "MCM_OPENAI_BENCHMARK_REPORT_DIR=build/reports/openai-benchmark"
+set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
+set "MCM_DEMO_SEED=false"
+call gradlew.bat openAiBenchmark
+```
+
+호출 전 preflight에서 다음 값이 보여야 합니다. `Report directory`는 같은 경로의 절대 경로로
+표시됩니다.
+
+```text
+OpenAI API key configured: yes
+Benchmark enabled: yes
+Live confirmation: yes
+Models: [gpt-5.6-luna]
+Cases: [CASE_A_WITHOUT_PRODUCT_TAG]
+Repetitions: 1
+Reasoning effort: none
+Planned calls: 1
+Maximum calls: 1
+Maximum output tokens: 4096
+Maximum estimated USD: 0.10
+Report directory: ...\build\reports\openai-benchmark
+```
+
+Pilot 성공 조건은 report에 정확히 한 run만 존재하고 `usedFallback=false`,
+`errorCategory=NONE`이며 `inputTokens`, `outputTokens`, `totalTokens`가 실제 숫자로 기록되는
+것입니다. `cachedInputTokens`, `cacheWriteTokens`, `reasoningTokens`는 SDK가 제공한 경우 실제
+값을 기록하고 미제공 값은 `UNAVAILABLE`로 유지합니다. cache 관련 usage가 미제공된 비용
+계산에서는 해당 input을 가장 비싼 input category로 보수적으로 계산하며 0으로 추정하지
+않습니다. 성공 run에는 failure diagnostic이 없으므로 콘솔에서는 해당 필드가 `UNAVAILABLE`,
+CSV에서는 빈 값으로 남습니다. 결과의 City Code, Product, Style Mood, Background, matchScore도
+Validator를 통과해야 합니다.
+콘솔의 최종 상태는 `Benchmark status: COMPLETED`, `Termination reason: NONE`이어야 합니다.
+
+실패하거나 fallback이 사용되면 먼저 한 run의 `failureStage`, `failureType`,
+`safeFailureDetail`, 안전한 HTTP metadata와 usage를 확인합니다. usage를 얻지 못하거나 핵심
+`inputTokens`, `outputTokens`, `totalTokens` 중 하나가 없거나 pricing을 확인할 수 없으면
+`Termination reason: COST_ESTIMATE_UNAVAILABLE`로 중단되는 것이 정상적인 비용 안전 동작입니다.
+이 pilot이 위 성공 조건을 만족하기 전에는 아래 30회 baseline으로 확대하지 않습니다.
 
 Windows CMD에서 저장된 key의 실제 값을 출력하지 않고 존재 여부만 확인한 뒤 다음 명령을
 그대로 실행합니다. `setx`는 사용하지 않으며 아래 `set` 값은 현재 CMD 프로세스에만
@@ -385,8 +490,10 @@ if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenA
 set "MCM_OPENAI_BENCHMARK=true"
 set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true"
 set "MCM_OPENAI_BENCHMARK_MODELS=gpt-5.6-luna,gpt-5.6-terra,gpt-5.6-sol"
+set "MCM_OPENAI_BENCHMARK_CASES=CASE_A_WITHOUT_PRODUCT_TAG,CASE_B_WITH_PRODUCT_TAG"
 set "MCM_OPENAI_BENCHMARK_REPETITIONS=5"
 set "MCM_OPENAI_BENCHMARK_MAX_CALLS=30"
+set "MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS=512"
 set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=1.00"
 set "MCM_OPENAI_REASONING_EFFORT=none"
 set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
@@ -395,7 +502,7 @@ call gradlew.bat openAiBenchmark
 ```
 
 Runner preflight에서 key의 존재 여부, models, cases, repetitions, reasoning effort, planned
-calls, call cap, estimated-cost cap, report directory를 먼저 확인합니다. Key가 없거나 두 live
+calls, call cap, maximum output tokens, estimated-cost cap, report directory를 먼저 확인합니다. Key가 없거나 두 live
 flag 중 하나라도 `false`이면 유료 호출 전에 종료해야 합니다. 실행 결과는 Git에서 제외된
 다음 경로에 생성됩니다.
 
@@ -456,8 +563,10 @@ if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenA
 set "MCM_OPENAI_BENCHMARK=true"
 set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true"
 set "MCM_OPENAI_BENCHMARK_MODELS=gpt-5.6-terra"
+set "MCM_OPENAI_BENCHMARK_CASES=CASE_A_WITHOUT_PRODUCT_TAG,CASE_B_WITH_PRODUCT_TAG"
 set "MCM_OPENAI_BENCHMARK_REPETITIONS=5"
 set "MCM_OPENAI_BENCHMARK_MAX_CALLS=10"
+set "MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS=512"
 set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=0.50"
 set "MCM_OPENAI_REASONING_EFFORT=low"
 set "MCM_STYLE_ANALYSIS_PROVIDER=openai"

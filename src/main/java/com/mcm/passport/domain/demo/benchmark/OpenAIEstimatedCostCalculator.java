@@ -30,17 +30,27 @@ public final class OpenAIEstimatedCostCalculator {
 		Long cachedInputTokens = usage.cachedInputTokens();
 		Long cacheWriteTokens = usage.cacheWriteTokens();
 		Long outputTokens = usage.outputTokens();
+		Long totalTokens = usage.totalTokens();
 
 		if (inputTokens == null
-				|| cachedInputTokens == null
-				|| cacheWriteTokens == null
 				|| outputTokens == null
+				|| totalTokens == null
 				|| inputTokens > MAX_STANDARD_SHORT_CONTEXT_INPUT_TOKENS
 				|| price.standardInputPricePerMillion() == null
 				|| price.cachedInputPricePerMillion() == null
 				|| price.cacheWritePricePerMillion() == null
 				|| price.outputPricePerMillion() == null) {
 			return Optional.empty();
+		}
+
+		if (cachedInputTokens == null || cacheWriteTokens == null) {
+			BigDecimal maximumInputPrice = price.standardInputPricePerMillion()
+					.max(price.cachedInputPricePerMillion())
+					.max(price.cacheWritePricePerMillion());
+			return Optional.of(
+					tokenCost(inputTokens, maximumInputPrice)
+							.add(tokenCost(outputTokens, price.outputPricePerMillion()))
+			);
 		}
 
 		long uncachedInputTokens = inputTokens - cachedInputTokens - cacheWriteTokens;

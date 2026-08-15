@@ -8,6 +8,9 @@ import com.mcm.passport.domain.style.analysis.ValidatedStyleAnalysis;
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIStyleAnalysisMeasurement;
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIMeteredException;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureDetail;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureDiagnostic;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIFailureStage;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisGatewayRequest;
 import com.mcm.passport.domain.style.analysis.openai.StyleAnalysisPrompt;
 import com.mcm.passport.domain.style.analysis.openai.StyleAnalysisPromptFactory;
@@ -28,7 +31,6 @@ public final class OpenAIBenchmarkRunner {
 
 	static final long RESERVED_INPUT_TOKENS = 8_192L;
 	static final long MAX_RENDERED_PROMPT_UTF8_BYTES = 4_096L;
-	static final long MAX_OUTPUT_TOKENS = 512L;
 
 	private final OpenAIStyleAnalysisProvider provider;
 	private final StyleAnalysisValidator validator;
@@ -73,7 +75,7 @@ public final class OpenAIBenchmarkRunner {
 		models:
 		for (String model : config.models()) {
 			boolean modelUnavailable = false;
-			for (OpenAIBenchmarkCase benchmarkCase : OpenAIBenchmarkFixtures.cases()) {
+			for (OpenAIBenchmarkCase benchmarkCase : OpenAIBenchmarkFixtures.select(config.caseNames())) {
 				for (int repetition = 0; repetition < config.repetitions(); repetition++) {
 					if (attemptedCalls >= config.maxCalls()) {
 						terminationReason = OpenAIBenchmarkErrorCategory.CALL_CAP_REACHED;
@@ -85,7 +87,7 @@ public final class OpenAIBenchmarkRunner {
 					}
 					Optional<BigDecimal> reservation = costCalculator.calculateReservationUsd(
 							RESERVED_INPUT_TOKENS,
-							MAX_OUTPUT_TOKENS,
+							config.maxOutputTokens(),
 							model,
 							pricing
 					);
@@ -109,7 +111,7 @@ public final class OpenAIBenchmarkRunner {
 							new OpenAIStyleAnalysisGatewayRequest(
 									model,
 									config.reasoningEffort(),
-									MAX_OUTPUT_TOKENS
+									config.maxOutputTokens()
 							)
 					);
 					runs.add(run);
@@ -170,9 +172,12 @@ public final class OpenAIBenchmarkRunner {
 		boolean usedFallback = false;
 		boolean success = false;
 		OpenAIBenchmarkErrorCategory errorCategory = OpenAIBenchmarkErrorCategory.NONE;
+		OpenAIFailureDiagnostic failureDiagnostic = null;
+		String responseModel = null;
 
 		try {
 			measurement = provider.analyzeWithMetrics(benchmarkCase.journeyData(), request);
+			responseModel = measurement.model();
 			analysis = validator.validate(measurement.candidate());
 			success = true;
 		} catch (RuntimeException providerFailure) {
@@ -180,9 +185,21 @@ public final class OpenAIBenchmarkRunner {
 			if (meteredFailure != null) {
 				failureUsage = meteredFailure.usage();
 				failureProviderLatencyMs = meteredFailure.providerLatencyMs();
+				failureDiagnostic = meteredFailure.diagnostic();
+				responseModel = meteredFailure.model();
+			}
+			else if (measurement != null) {
+				failureDiagnostic = OpenAIFailureDiagnostic.of(
+						providerFailure,
+						OpenAIFailureStage.VALIDATION,
+						OpenAIFailureDetail.VALIDATION_FAILED,
+						null,
+						null,
+						null
+				);
 			}
 			usedFallback = true;
-			errorCategory = errorClassifier.classify(providerFailure);
+			errorCategory = errorClassifier.classify(providerFailure, failureDiagnostic);
 			if (errorCategory == OpenAIBenchmarkErrorCategory.UNKNOWN) {
 				errorCategory = OpenAIBenchmarkErrorCategory.FALLBACK;
 			}
@@ -239,7 +256,14 @@ public final class OpenAIBenchmarkRunner {
 				endToEndLatencyMs,
 				estimatedCost,
 				success && !usedFallback && errorCategory == OpenAIBenchmarkErrorCategory.NONE,
-				errorCategory
+				errorCategory,
+				failureDiagnostic == null ? null : failureDiagnostic.failureType(),
+				failureDiagnostic == null ? null : failureDiagnostic.failureStage().name(),
+				failureDiagnostic == null ? null : failureDiagnostic.safeFailureDetail().name(),
+				failureDiagnostic == null ? null : failureDiagnostic.httpStatus(),
+				failureDiagnostic == null ? null : failureDiagnostic.errorCode(),
+				failureDiagnostic == null ? null : failureDiagnostic.requestId(),
+				responseModel
 		);
 	}
 
@@ -269,11 +293,14 @@ public final class OpenAIBenchmarkRunner {
 
 	private void logSafely(OpenAIBenchmarkRun run) {
 		output.printf(
-				"Benchmark run %d: model=%s, inputTokens=%s, cachedInputTokens=%s, "
+				"Benchmark run %d: model=%s, responseModel=%s, inputTokens=%s, cachedInputTokens=%s, "
 						+ "cacheWriteTokens=%s, outputTokens=%s, reasoningTokens=%s, totalTokens=%s, "
-						+ "providerLatencyMs=%s, endToEndLatencyMs=%d, usedFallback=%s, errorCategory=%s%n",
+						+ "providerLatencyMs=%s, endToEndLatencyMs=%d, usedFallback=%s, errorCategory=%s, "
+						+ "failureType=%s, failureStage=%s, safeFailureDetail=%s, httpStatus=%s, "
+						+ "errorCode=%s, requestId=%s%n",
 				run.runNumber(),
 				run.model(),
+				value(run.responseModel()),
 				value(run.inputTokens()),
 				value(run.cachedInputTokens()),
 				value(run.cacheWriteTokens()),
@@ -283,7 +310,13 @@ public final class OpenAIBenchmarkRunner {
 				value(run.providerLatencyMs()),
 				run.endToEndLatencyMs(),
 				run.usedFallback(),
-				run.errorCategory()
+				run.errorCategory(),
+				value(run.failureType()),
+				value(run.failureStage()),
+				value(run.safeFailureDetail()),
+				value(run.httpStatus()),
+				value(run.errorCode()),
+				value(run.requestId())
 		);
 	}
 

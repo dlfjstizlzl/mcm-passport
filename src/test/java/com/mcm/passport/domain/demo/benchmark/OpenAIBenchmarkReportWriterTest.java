@@ -47,17 +47,82 @@ class OpenAIBenchmarkReportWriterTest {
 
 		assertThat(csv)
 				.startsWith("runNumber,caseName,model,reasoningEffort")
-				.contains("cachedInputTokens", "cacheWriteTokens", "reasoningTokens")
+				.contains(
+						"cachedInputTokens",
+						"cacheWriteTokens",
+						"reasoningTokens",
+						"failureType",
+						"failureStage",
+						"safeFailureDetail",
+						"responseModel"
+				)
 				.contains("\"CASE_A_WITHOUT_PRODUCT_TAG\"", "\"0.001\"");
 		assertThat(json)
 				.contains("\"status\"", "\"COMPLETED\"")
 				.contains("\"pricingCheckedAt\"", "2026-08-16")
-				.contains("\"models\"", "\"sameResultRate\"");
+				.contains("\"models\"", "\"sameResultRate\"", "\"failures\"");
 		assertThat(markdown)
 				.contains("# OpenAI Style Analysis Benchmark")
 				.contains("Estimated cost is a benchmark estimate", "Consistency is not accuracy")
-				.contains("gpt-5.6-luna", "sameResultRate", "ProductTag comparison")
+				.contains(
+						"gpt-5.6-luna",
+						"sameResultRate",
+						"ProductTag comparison",
+						"Safe failure diagnostics",
+						"No failed OpenAI benchmark runs were recorded"
+				)
 				.doesNotContain("OPENAI_API_KEY", "sk-");
+	}
+
+	@Test
+	void writesOnlyAllowlistedFailureMetadataToEveryReportFormat() throws Exception {
+		OpenAIBenchmarkRun failedRun = diagnosticRun();
+		OpenAIBenchmarkExecution execution = new OpenAIBenchmarkExecution(
+				"2026-08-16T00:00:00Z",
+				"2026-08-16T00:00:05Z",
+				OpenAIBenchmarkErrorCategory.COST_ESTIMATE_UNAVAILABLE,
+				List.of(failedRun)
+		);
+		OpenAIBenchmarkSummary summary = OpenAIBenchmarkSummary.from(
+				execution,
+				OpenAIBenchmarkPricingSnapshot.standardShortContext()
+		);
+		Path reportDirectory = temporaryDirectory.resolve("failure-report");
+
+		new OpenAIBenchmarkReportWriter().write(reportDirectory, execution, summary);
+
+		String csv = Files.readString(reportDirectory.resolve("runs.csv"), StandardCharsets.UTF_8);
+		String json = Files.readString(reportDirectory.resolve("summary.json"), StandardCharsets.UTF_8);
+		String markdown = Files.readString(reportDirectory.resolve("summary.md"), StandardCharsets.UTF_8);
+		assertThat(csv).contains(
+				"\"OpenAIInvalidDataException\"",
+				"\"SDK_RESPONSE_DESERIALIZATION\"",
+				"\"SDK_RESPONSE_DESERIALIZATION_FAILED\"",
+				"\"req_safe_789\"",
+				"\"gpt-5.6-luna-2026-08-01\""
+		);
+		assertThat(json).contains(
+				"\"failureType\"",
+				"\"OpenAIInvalidDataException\"",
+				"\"failureStage\"",
+				"\"SDK_RESPONSE_DESERIALIZATION\"",
+				"\"safeFailureDetail\"",
+				"\"SDK_RESPONSE_DESERIALIZATION_FAILED\"",
+				"\"requestId\"",
+				"\"req_safe_789\"",
+				"\"responseModel\"",
+				"\"gpt-5.6-luna-2026-08-01\""
+		);
+		assertThat(markdown).contains(
+				"Safe failure diagnostics",
+				"OpenAIInvalidDataException",
+				"SDK_RESPONSE_DESERIALIZATION",
+				"SDK_RESPONSE_DESERIALIZATION_FAILED",
+				"req_safe_789",
+				"gpt-5.6-luna-2026-08-01"
+		);
+		assertThat(csv + json + markdown)
+				.doesNotContain("RAW_RESPONSE_SECRET_SENTINEL", "API_KEY_SECRET_SENTINEL");
 	}
 
 	@Test
@@ -132,6 +197,39 @@ class OpenAIBenchmarkReportWriterTest {
 				new BigDecimal("0.001"),
 				success,
 				OpenAIBenchmarkErrorCategory.NONE
+		);
+	}
+
+	private OpenAIBenchmarkRun diagnosticRun() {
+		return new OpenAIBenchmarkRun(
+				1,
+				"CASE_A_WITHOUT_PRODUCT_TAG",
+				"gpt-5.6-luna",
+				"none",
+				"BERLIN_AFTERDARK_NOMAD",
+				"STARK_BACKPACK",
+				"AFTERDARK_MOVEMENT",
+				"BERLIN_AFTERDARK",
+				90,
+				true,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				3_505L,
+				3_689L,
+				null,
+				false,
+				OpenAIBenchmarkErrorCategory.SDK_RESPONSE_DESERIALIZATION,
+				"OpenAIInvalidDataException",
+				"SDK_RESPONSE_DESERIALIZATION",
+				"SDK_RESPONSE_DESERIALIZATION_FAILED",
+				200,
+				null,
+				"req_safe_789",
+				"gpt-5.6-luna-2026-08-01"
 		);
 	}
 }

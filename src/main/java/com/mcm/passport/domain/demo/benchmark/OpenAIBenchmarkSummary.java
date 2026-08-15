@@ -17,11 +17,13 @@ public record OpenAIBenchmarkSummary(
 		String completedAt,
 		String terminationReason,
 		String pricingCheckedAt,
-		List<ModelSummary> models
+		List<ModelSummary> models,
+		List<FailureSummary> failures
 ) {
 
 	public OpenAIBenchmarkSummary {
 		models = List.copyOf(Objects.requireNonNull(models, "models must not be null"));
+		failures = List.copyOf(Objects.requireNonNull(failures, "failures must not be null"));
 	}
 
 	public static OpenAIBenchmarkSummary from(
@@ -37,6 +39,10 @@ public record OpenAIBenchmarkSummary(
 		List<ModelSummary> modelSummaries = byModel.entrySet().stream()
 				.map(entry -> ModelSummary.from(entry.getKey(), entry.getValue()))
 				.toList();
+		List<FailureSummary> failures = execution.runs().stream()
+				.filter(run -> run.errorCategory() != OpenAIBenchmarkErrorCategory.NONE)
+				.map(FailureSummary::from)
+				.toList();
 
 		return new OpenAIBenchmarkSummary(
 				execution.terminationReason() == OpenAIBenchmarkErrorCategory.NONE ? "COMPLETED" : "STOPPED",
@@ -44,8 +50,40 @@ public record OpenAIBenchmarkSummary(
 				execution.completedAt(),
 				execution.terminationReason().name(),
 				pricing.pricingCheckedAt().toString(),
-				modelSummaries
+				modelSummaries,
+				failures
 		);
+	}
+
+	public record FailureSummary(
+			int runNumber,
+			String caseName,
+			String model,
+			String responseModel,
+			String errorCategory,
+			String failureType,
+			String failureStage,
+			String safeFailureDetail,
+			Integer httpStatus,
+			String errorCode,
+			String requestId
+	) {
+
+		static FailureSummary from(OpenAIBenchmarkRun run) {
+			return new FailureSummary(
+					run.runNumber(),
+					run.caseName(),
+					run.model(),
+					run.responseModel(),
+					run.errorCategory().name(),
+					run.failureType(),
+					run.failureStage(),
+					run.safeFailureDetail(),
+					run.httpStatus(),
+					run.errorCode(),
+					run.requestId()
+			);
+		}
 	}
 
 	public record ModelSummary(
@@ -116,7 +154,8 @@ public record OpenAIBenchmarkSummary(
 			Map<String, Integer> cityCodeDistribution,
 			Map<String, Integer> recommendedProductDistribution,
 			Map<String, Integer> styleMoodDistribution,
-			Map<String, Integer> metricSampleCounts
+			Map<String, Integer> metricSampleCounts,
+			Map<String, Integer> responseModelDistribution
 	) {
 
 		static Aggregate from(List<OpenAIBenchmarkRun> runs, boolean groupConsistencyByCase) {
@@ -130,6 +169,10 @@ public record OpenAIBenchmarkSummary(
 			registerSample(sampleCounts, "reasoningTokens", runs, OpenAIBenchmarkRun::reasoningTokens);
 			registerSample(sampleCounts, "totalTokens", runs, OpenAIBenchmarkRun::totalTokens);
 			registerSample(sampleCounts, "providerLatencyMs", runs, OpenAIBenchmarkRun::providerLatencyMs);
+			sampleCounts.put(
+					"responseModel",
+					(int) runs.stream().map(OpenAIBenchmarkRun::responseModel).filter(Objects::nonNull).count()
+			);
 			sampleCounts.put("endToEndLatencyMs", runs.size());
 			sampleCounts.put("estimatedCostUsd", knownCosts.size());
 
@@ -157,7 +200,8 @@ public record OpenAIBenchmarkSummary(
 					distribution(successful, OpenAIBenchmarkRun::cityCode),
 					distribution(successful, OpenAIBenchmarkRun::recommendedProduct),
 					distribution(successful, OpenAIBenchmarkRun::styleMood),
-					Collections.unmodifiableMap(new LinkedHashMap<>(sampleCounts))
+					Collections.unmodifiableMap(new LinkedHashMap<>(sampleCounts)),
+					distribution(runs, OpenAIBenchmarkRun::responseModel)
 			);
 		}
 	}
