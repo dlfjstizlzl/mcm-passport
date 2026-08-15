@@ -39,3 +39,10 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.register('openAiBenchmark', JavaExec) {
+	group = 'verification'
+	description = 'Runs the explicitly confirmed local OpenAI style analysis benchmark.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.mcm.passport.domain.demo.benchmark.OpenAIBenchmarkMain'
+}

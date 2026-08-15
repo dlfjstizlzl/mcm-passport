@@ -1,7 +1,12 @@
 package com.mcm.passport.domain.style.analysis;
 
 import com.mcm.passport.domain.journey.service.JourneyDataSnapshot;
+import com.mcm.passport.domain.style.analysis.metrics.OpenAIStyleAnalysisMeasurement;
+import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIReasoningEffort;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisGateway;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisGatewayRequest;
+import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisGatewayResult;
 import com.mcm.passport.domain.style.analysis.openai.OpenAIStyleAnalysisOutput;
 import com.mcm.passport.domain.style.analysis.openai.StyleAnalysisPrompt;
 import com.mcm.passport.domain.style.analysis.openai.StyleAnalysisPromptFactory;
@@ -15,7 +20,7 @@ import com.openai.models.responses.StructuredResponseCreateParams;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,6 +55,29 @@ class OpenAIStyleAnalysisProviderTest {
 		assertThat(candidate.description()).isEqualTo("오늘 Journey를 위한 오프라인 테스트 결과입니다.");
 		assertThat(candidate.matchScore()).isEqualTo(91);
 		assertThat(gateway.capturedPrompt()).isNotNull();
+		assertThat(gateway.capturedRequest().model()).isEqualTo("offline-test-model");
+		assertThat(gateway.capturedRequest().effort()).isEqualTo(OpenAIReasoningEffort.NONE);
+	}
+
+	@Test
+	void preservesOfflineGatewayUsageModelAndLatencyInMeasurement() {
+		FakeGateway gateway = FakeGateway.returning(validBerlinOutput());
+		OpenAIStyleAnalysisProvider provider = provider(gateway);
+		OpenAIStyleAnalysisGatewayRequest request = new OpenAIStyleAnalysisGatewayRequest(
+				"gpt-5.6-luna",
+				OpenAIReasoningEffort.LOW
+		);
+
+		OpenAIStyleAnalysisMeasurement measurement = provider.analyzeWithMetrics(
+				journeyWithoutProductTags(),
+				request
+		);
+
+		assertThat(measurement.candidate().cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD.name());
+		assertThat(measurement.usage()).isEqualTo(FakeGateway.USAGE);
+		assertThat(measurement.model()).isEqualTo("gpt-5.6-luna");
+		assertThat(measurement.providerLatencyMs()).isEqualTo(23L);
+		assertThat(gateway.capturedRequest()).isEqualTo(request);
 	}
 
 	@Test
@@ -171,31 +199,62 @@ class OpenAIStyleAnalysisProviderTest {
 
 	private static final class FakeGateway implements OpenAIStyleAnalysisGateway {
 
-		private final Function<StyleAnalysisPrompt, OpenAIStyleAnalysisOutput> behavior;
-		private StyleAnalysisPrompt capturedPrompt;
+		private static final OpenAIUsageMetrics USAGE = new OpenAIUsageMetrics(
+				120L,
+				20L,
+				5L,
+				40L,
+				10L,
+				160L
+		);
 
-		private FakeGateway(Function<StyleAnalysisPrompt, OpenAIStyleAnalysisOutput> behavior) {
+		private final BiFunction<
+				StyleAnalysisPrompt,
+				OpenAIStyleAnalysisGatewayRequest,
+				OpenAIStyleAnalysisGatewayResult
+		> behavior;
+		private StyleAnalysisPrompt capturedPrompt;
+		private OpenAIStyleAnalysisGatewayRequest capturedRequest;
+
+		private FakeGateway(BiFunction<
+				StyleAnalysisPrompt,
+				OpenAIStyleAnalysisGatewayRequest,
+				OpenAIStyleAnalysisGatewayResult
+		> behavior) {
 			this.behavior = behavior;
 		}
 
 		static FakeGateway returning(OpenAIStyleAnalysisOutput output) {
-			return new FakeGateway(prompt -> output);
+			return new FakeGateway((prompt, request) -> new OpenAIStyleAnalysisGatewayResult(
+					output,
+					USAGE,
+					request.model(),
+					23L
+			));
 		}
 
 		static FakeGateway failingWith(RuntimeException exception) {
-			return new FakeGateway(prompt -> {
+			return new FakeGateway((prompt, request) -> {
 				throw exception;
 			});
 		}
 
 		@Override
-		public OpenAIStyleAnalysisOutput analyze(StyleAnalysisPrompt prompt) {
+		public OpenAIStyleAnalysisGatewayResult analyze(
+				StyleAnalysisPrompt prompt,
+				OpenAIStyleAnalysisGatewayRequest request
+		) {
 			capturedPrompt = prompt;
-			return behavior.apply(prompt);
+			capturedRequest = request;
+			return behavior.apply(prompt, request);
 		}
 
 		StyleAnalysisPrompt capturedPrompt() {
 			return capturedPrompt;
+		}
+
+		OpenAIStyleAnalysisGatewayRequest capturedRequest() {
+			return capturedRequest;
 		}
 	}
 }

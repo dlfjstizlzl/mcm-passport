@@ -295,6 +295,7 @@ mcm:
       openai:
         api-key: ${OPENAI_API_KEY:}
         model: ${OPENAI_MODEL:}
+        reasoning-effort: ${MCM_OPENAI_REASONING_EFFORT:none}
         timeout: ${OPENAI_TIMEOUT:30s}
 ```
 
@@ -340,7 +341,131 @@ BE1 없이 수동 연동을 확인할 때만 `MCM_DEMO_SEED=true`를 설정합�
 Demo Journey fixture available: withoutProductTagSessionId=1, withProductTagSessionId=2
 ```
 
-#### BE1 없이 실제 OpenAI smoke test
+#### STEP A — 로컬 OpenAI usage benchmark
+
+Benchmark는 BE1, MySQL, REST endpoint 없이 전용 `openAiBenchmark` Gradle task로 실행합니다.
+일반 `bootRun`이나 CI에서는 실행되지 않으며, 아래 두 flag가 모두 `true`일 때만 실제
+유료 요청을 보낼 수 있습니다.
+
+```text
+MCM_OPENAI_BENCHMARK=true
+MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true
+```
+
+기본 baseline은 다음과 같습니다.
+
+- models: `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5.6-sol`
+- cases: ProductTag가 없는 `CASE_A_WITHOUT_PRODUCT_TAG`, `STARK_BACKPACK`만 추가한
+  `CASE_B_WITH_PRODUCT_TAG`
+- repetitions: 각 조합 5회
+- reasoning effort: `none`
+- planned calls: 3 models × 2 cases × 5 = 최대 30회
+- call cap: 30
+- estimated-cost cap: USD 1.00
+
+비용 guard는 고정 fixture의 rendered prompt가 4,096 UTF-8 bytes 이하인지 실행 전에 검증하고,
+첫 호출부터 현재 모델의 8,192 input-token 예약분을 input/cache-write
+중 더 비싼 요율로 계산하고, 요청에 실제 `maxOutputTokens=512`를 적용합니다. 이
+예약 비용과 기존 누적 추정액의 합이 cap을 넘으면 다음 유료 호출 전에 중단합니다.
+이는 Standard short-context snapshot에 기반한 보수적 benchmark 안전장치이지 실제 청구 상한을
+보증하는 billing control은 아닙니다.
+
+실제 benchmark 결과 상태는 현재 **`PENDING_LOCAL_LIVE_RUN`**입니다. Cloud, 자동 테스트,
+GitHub Actions에서는 live benchmark를 실행하지 않으며 token, latency, 비용, 모델 결과를
+추측해서 기록하지 않습니다.
+
+Windows CMD에서 저장된 key의 실제 값을 출력하지 않고 존재 여부만 확인한 뒤 다음 명령을
+그대로 실행합니다. `setx`는 사용하지 않으며 아래 `set` 값은 현재 CMD 프로세스에만
+적용됩니다. `OPENAI_MODEL`은 STEP B REST smoke용 설정이고, benchmark는 아래 model 목록을
+사용합니다.
+
+```bat
+if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenAI API key configured: no)
+
+set "MCM_OPENAI_BENCHMARK=true"
+set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true"
+set "MCM_OPENAI_BENCHMARK_MODELS=gpt-5.6-luna,gpt-5.6-terra,gpt-5.6-sol"
+set "MCM_OPENAI_BENCHMARK_REPETITIONS=5"
+set "MCM_OPENAI_BENCHMARK_MAX_CALLS=30"
+set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=1.00"
+set "MCM_OPENAI_REASONING_EFFORT=none"
+set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
+set "MCM_DEMO_SEED=false"
+call gradlew.bat openAiBenchmark
+```
+
+Runner preflight에서 key의 존재 여부, models, cases, repetitions, reasoning effort, planned
+calls, call cap, estimated-cost cap, report directory를 먼저 확인합니다. Key가 없거나 두 live
+flag 중 하나라도 `false`이면 유료 호출 전에 종료해야 합니다. 실행 결과는 Git에서 제외된
+다음 경로에 생성됩니다.
+
+```text
+build/reports/openai-benchmark/runs.csv
+build/reports/openai-benchmark/summary.json
+build/reports/openai-benchmark/summary.md
+```
+
+Report에는 model/case/effort별 결과, fallback 여부, provider/end-to-end latency, token usage,
+예상 비용과 결과 일관성 지표를 기록합니다. Raw prompt, raw response, description 원문, API
+key는 로그나 report에 저장하지 않습니다. 실제 live report도 Git에 commit하지 않습니다.
+`usedFallback=true`는 BE2 복구 흐름은 성공했지만 OpenAI benchmark run은 실패한 것으로
+집계합니다.
+
+Responses API usage의 `inputTokens`는 cached read와 cache write를 포함한 전체 input입니다.
+`cachedInputTokens`와 `cacheWriteTokens`는 그 하위 과금 구간이며, 나머지만 일반 input으로
+계산합니다. [Reasoning](https://developers.openai.com/api/docs/guides/reasoning)의
+`reasoningTokens`는 `outputTokens`에 포함되어 output 가격으로 과금되므로 다시
+더하지 않습니다. SDK가 제공하지 않은 usage 값은 0으로 만들지 않고 측정 불가로 유지합니다.
+예상 비용은 다음 구간을 한 번씩만 계산한 benchmark 추정치이며 실제 청구 금액이 아닙니다.
+
+```text
+ordinaryInput = inputTokens - cachedInputTokens - cacheWriteTokens
+estimatedCost = ordinaryInput * inputPrice
+              + cachedInputTokens * cachedInputPrice
+              + cacheWriteTokens * cacheWritePrice
+              + outputTokens * outputPrice
+```
+
+[OpenAI API Pricing](https://developers.openai.com/api/docs/pricing)을 2026-08-16에 확인한
+Standard short-context 가격 snapshot은 다음과 같습니다. 단위는 USD / 1M tokens입니다.
+
+| Model | Input | Cached input | Cache write | Output |
+|---|---:|---:|---:|---:|
+| `gpt-5.6-luna` | 0.20 | 0.02 | 0.25 | 1.20 |
+| `gpt-5.6-terra` | 2.00 | 0.20 | 2.50 | 12.00 |
+| `gpt-5.6-sol` | 5.00 | 0.50 | 6.25 | 30.00 |
+
+이 snapshot과 계산기는 Standard short-context만 지원합니다. 272K input tokens를 초과하면
+계산기는 잘못된 short-context 요율을 적용하지 않고 비용을 측정 불가로 처리하여
+benchmark를 중단합니다. Long-context는 별도 가격 band가 구현된 후에만 측정해야 합니다.
+Regional processing 등 별도 service tier의 실제 청구는 이 Standard 추정에서 제외합니다.
+
+[Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)은 exact prefix와
+최소 1,024-token cacheable prefix를 전제로 하며 cache hit를 보장하지 않습니다. 첫 로컬
+benchmark에서는 현재 prompt 구조를 그대로 측정하고 `cachedInputTokens`와
+`cacheWriteTokens`만 관찰합니다. Static prefix 재배치, cache key, explicit breakpoint 최적화는
+baseline 결과를 확보한 뒤 별도 실험으로 진행합니다.
+
+`low` effort는 기본 30회에 자동 포함하지 않습니다. 필요한 모델 하나만 고른 후 아래처럼
+반복 수와 cap을 함께 낮춘 수동 후속 실험으로 실행합니다. 다음 블록도 새 Windows CMD에서
+독립적으로 실행할 수 있는 전체 설정입니다.
+
+```bat
+if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenAI API key configured: no)
+
+set "MCM_OPENAI_BENCHMARK=true"
+set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=true"
+set "MCM_OPENAI_BENCHMARK_MODELS=gpt-5.6-terra"
+set "MCM_OPENAI_BENCHMARK_REPETITIONS=5"
+set "MCM_OPENAI_BENCHMARK_MAX_CALLS=10"
+set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=0.50"
+set "MCM_OPENAI_REASONING_EFFORT=low"
+set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
+set "MCM_DEMO_SEED=false"
+call gradlew.bat openAiBenchmark
+```
+
+#### STEP B — BE1 없이 기존 REST API OpenAI smoke test
 
 실제 OpenAI 호출은 자동 테스트 및 CI와 분리합니다. 먼저 API key를 로컬 secret manager,
 IDE의 비공개 Run Configuration 또는 현재 프로세스 환경에 `OPENAI_API_KEY`로 등록합니다.
@@ -355,8 +480,23 @@ MCM_DEMO_SEED=true
 OPENAI_TIMEOUT=30s              # 선택 사항
 ```
 
-MySQL 로컬 설정을 준비한 뒤 `Windows: .\gradlew.bat bootRun` 또는
-`macOS/Linux: ./gradlew bootRun`으로 애플리케이션을 시작합니다. 이후 다음 순서로
+MySQL 로컬 설정을 준비한 뒤 Windows CMD의 새 창에서 다음으로 시작합니다.
+`OPENAI_API_KEY`와 `OPENAI_MODEL`은 이미 저장된 사용자 환경변수를 읽으며 값을 다시 출력하지
+않습니다.
+
+```bat
+if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenAI API key configured: no)
+if defined OPENAI_MODEL (echo OpenAI model configured: yes) else (echo OpenAI model configured: no)
+
+set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
+set "MCM_DEMO_SEED=true"
+set "MCM_OPENAI_REASONING_EFFORT=none"
+set "MCM_OPENAI_BENCHMARK=false"
+set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=false"
+call gradlew.bat bootRun
+```
+
+macOS/Linux에서는 같은 환경변수를 설정한 뒤 `./gradlew bootRun`을 사용합니다. 이후 다음 순서로
 ProductTag 없는 세션을 먼저 확인합니다. 아래 `<SESSION_ID>`는 시작 로그의
 `withoutProductTagSessionId` 숫자로 바꿉니다.
 
@@ -433,9 +573,10 @@ WHERE id = <SESSION_ID>;
 
 개인 저장소의 `.github/workflows/backend-ci.yml`은 push, pull request, 수동 실행에서
 Ubuntu와 Java 21로 Gradle wrapper의 `clean build`를 실행합니다. CI는
-`MCM_STYLE_ANALYSIS_PROVIDER=mock`, `MCM_DEMO_SEED=false`, 테스트용 H2를 명시하며
-`OPENAI_API_KEY`나 MySQL을 요구하지 않습니다. 따라서 CI에서는 실제 OpenAI 호출이나
-비용이 발생하지 않으며 배포, Docker build도 수행하지 않습니다.
+`MCM_STYLE_ANALYSIS_PROVIDER=mock`, `MCM_DEMO_SEED=false`,
+`MCM_OPENAI_BENCHMARK=false`, `MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=false`, 테스트용 H2를
+명시하며 `OPENAI_API_KEY`나 MySQL을 요구하지 않습니다. 따라서 CI에서는 실제 OpenAI
+호출이나 비용이 발생하지 않으며 배포, Docker build도 수행하지 않습니다.
 
 현재 `PassportSession`, `JourneyResponse`, `JourneyStamp`, `Product`, `ProductTag`,
 `JpaJourneyDataReader`는 BE2 프로토타입 실행을 위한 최소 공통 모델입니다. 실제 BE1

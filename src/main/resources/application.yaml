@@ -25,4 +25,5 @@ mcm:
       openai:
         api-key: ${OPENAI_API_KEY:}
         model: ${OPENAI_MODEL:}
+        reasoning-effort: ${MCM_OPENAI_REASONING_EFFORT:none}
         timeout: ${OPENAI_TIMEOUT:30s}

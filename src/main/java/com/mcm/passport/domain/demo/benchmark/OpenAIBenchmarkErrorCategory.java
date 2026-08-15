@@ -1,0 +1,17 @@
+package com.mcm.passport.domain.demo.benchmark;
+
+public enum OpenAIBenchmarkErrorCategory {
+	NONE,
+	MODEL_UNAVAILABLE,
+	AUTHENTICATION,
+	RATE_LIMIT,
+	TIMEOUT,
+	NETWORK,
+	STRUCTURED_OUTPUT_PARSE,
+	VALIDATION,
+	FALLBACK,
+	COST_CAP_REACHED,
+	CALL_CAP_REACHED,
+	COST_ESTIMATE_UNAVAILABLE,
+	UNKNOWN
+}
