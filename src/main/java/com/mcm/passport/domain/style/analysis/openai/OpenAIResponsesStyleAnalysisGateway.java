@@ -2,9 +2,12 @@ package com.mcm.passport.domain.style.analysis.openai;
 
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
 import com.openai.client.OpenAIClient;
+import com.openai.core.JsonValue;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.errors.OpenAIServiceException;
+import com.openai.models.ChatModel;
 import com.openai.models.Reasoning;
+import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseStatus;
@@ -151,26 +154,7 @@ public class OpenAIResponsesStyleAnalysisGateway implements OpenAIStyleAnalysisG
 			);
 		}
 
-		String responseModel;
-		try {
-			responseModel = rawResponse._model().asKnown()
-					.map(model -> model.asString())
-					.filter(model -> !model.isBlank())
-					.orElse(request.model());
-		}
-		catch (RuntimeException metadataFailure) {
-			throw meteredFailure(
-					metadataFailure,
-					usage,
-					request.model(),
-					providerLatencyMs,
-					OpenAIFailureStage.RESPONSE_METADATA,
-					OpenAIFailureDetail.RESPONSE_MODEL_UNAVAILABLE,
-					httpStatus,
-					null,
-					requestId
-			);
-		}
+		String responseModel = responseModel(rawResponse, request.model());
 		boolean incompleteForMaxOutputTokens;
 		try {
 			incompleteForMaxOutputTokens = isIncompleteForMaxOutputTokens(rawResponse);
@@ -359,6 +343,47 @@ public class OpenAIResponsesStyleAnalysisGateway implements OpenAIStyleAnalysisG
 
 	private boolean isHttpFailureStatus(Integer status) {
 		return status != null && (status < 200 || status >= 300);
+	}
+
+	private String responseModel(Response response, String fallbackModel) {
+		try {
+			return response._model().asKnown()
+					.map(model -> responseModel(model, fallbackModel))
+					.orElse(fallbackModel);
+		}
+		catch (RuntimeException ignored) {
+			return fallbackModel;
+		}
+	}
+
+	String responseModel(ResponsesModel model, String fallbackModel) {
+		try {
+			String value = model.accept(new ResponsesModel.Visitor<>() {
+				@Override
+				public String visitString(String value) {
+					return value;
+				}
+
+				@Override
+				public String visitChat(ChatModel value) {
+					return value.asString();
+				}
+
+				@Override
+				public String visitOnly(ResponsesModel.ResponsesOnlyModel value) {
+					return value.asString();
+				}
+
+				@Override
+				public String unknown(JsonValue value) {
+					return fallbackModel;
+				}
+			});
+			return value == null || value.isBlank() ? fallbackModel : value;
+		}
+		catch (RuntimeException ignored) {
+			return fallbackModel;
+		}
 	}
 
 	private boolean isIncompleteForMaxOutputTokens(Response response) {

@@ -3,11 +3,14 @@ package com.mcm.passport.domain.style.analysis.openai;
 import com.mcm.passport.domain.style.analysis.metrics.OpenAIUsageMetrics;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonField;
+import com.openai.core.JsonValue;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.errors.OpenAIInvalidDataException;
 import com.openai.errors.RateLimitException;
+import com.openai.models.ChatModel;
 import com.openai.models.ErrorObject;
+import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseOutputMessage;
@@ -119,6 +122,72 @@ class OpenAIResponsesStyleAnalysisGatewayTest {
 		);
 		assertThat(schema.get("additionalProperties")).isEqualTo(false);
 		verify(httpResponse).close();
+	}
+
+	@Test
+	void readsLunaChatModelVariant() {
+		assertChatModelVariant(ChatModel.GPT_5_6_LUNA);
+	}
+
+	@Test
+	void readsTerraChatModelVariant() {
+		assertChatModelVariant(ChatModel.GPT_5_6_TERRA);
+	}
+
+	@Test
+	void readsSolChatModelVariant() {
+		assertChatModelVariant(ChatModel.GPT_5_6_SOL);
+	}
+
+	@Test
+	void readsResponsesOnlyModelVariant() {
+		ResponsesModel.ResponsesOnlyModel model = ResponsesModel.ResponsesOnlyModel.O3_PRO;
+		Response response = completedResponse(validOutputJson()).toBuilder()
+				.model(model)
+				.build();
+		when(httpResponse.parse()).thenReturn(response);
+
+		OpenAIStyleAnalysisGatewayResult result = gateway().analyze(PROMPT, REQUEST);
+
+		assertThat(result.model()).isEqualTo(model.asString());
+		assertThat(result.output().cityCode()).isEqualTo("BERLIN_AFTERDARK_NOMAD");
+		assertThat(result.usage()).isEqualTo(EXPECTED_USAGE);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void fallsBackToRequestModelForUnknownUnionVariantAndContinuesStructuredParsing() {
+		ResponsesModel unknownModel = mock(ResponsesModel.class);
+		when(unknownModel.accept(any())).thenAnswer(invocation -> {
+			ResponsesModel.Visitor<String> visitor = invocation.getArgument(0);
+			return visitor.unknown(JsonValue.from(Map.of("future", "model")));
+		});
+		Response response = completedResponse(validOutputJson()).toBuilder()
+				.model(JsonField.of(unknownModel))
+				.build();
+		when(httpResponse.parse()).thenReturn(response);
+
+		OpenAIStyleAnalysisGatewayResult result = gateway().analyze(PROMPT, REQUEST);
+
+		assertThat(result.model()).isEqualTo(REQUEST.model());
+		assertThat(result.output().matchScore()).isEqualTo(91);
+		assertThat(result.usage()).isEqualTo(EXPECTED_USAGE);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void fallsBackToRequestModelWhenMetadataExtractionFailsAndContinuesStructuredParsing() {
+		Response response = spy(completedResponse(validOutputJson()));
+		JsonField<ResponsesModel> invalidModel = mock(JsonField.class);
+		when(invalidModel.asKnown()).thenThrow(new OpenAIInvalidDataException("unsafe model metadata"));
+		when(response._model()).thenReturn(invalidModel);
+		when(httpResponse.parse()).thenReturn(response);
+
+		OpenAIStyleAnalysisGatewayResult result = gateway().analyze(PROMPT, REQUEST);
+
+		assertThat(result.model()).isEqualTo(REQUEST.model());
+		assertThat(result.output().recommendedProduct()).isEqualTo("STARK_BACKPACK");
+		assertThat(result.usage()).isEqualTo(EXPECTED_USAGE);
 	}
 
 	@Test
@@ -317,6 +386,19 @@ class OpenAIResponsesStyleAnalysisGatewayTest {
 				new OpenAIResponseUsageMapper(),
 				() -> now.getAndAdd(5_000_000L)
 		);
+	}
+
+	private void assertChatModelVariant(ChatModel model) {
+		Response response = completedResponse(validOutputJson()).toBuilder()
+				.model(model)
+				.build();
+		when(httpResponse.parse()).thenReturn(response);
+
+		OpenAIStyleAnalysisGatewayResult result = gateway().analyze(PROMPT, REQUEST);
+
+		assertThat(result.model()).isEqualTo(model.asString());
+		assertThat(result.output().background()).isEqualTo("BERLIN_AFTERDARK");
+		assertThat(result.usage()).isEqualTo(EXPECTED_USAGE);
 	}
 
 	private Response completedResponse(String outputText) {
