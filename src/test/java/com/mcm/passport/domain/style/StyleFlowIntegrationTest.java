@@ -44,7 +44,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
+@SpringBootTest(properties = "mcm.style.analysis.provider=mock")
 class StyleFlowIntegrationTest {
 
 	private static final String STYLE_SPOT_CODE = "GATE-S1";

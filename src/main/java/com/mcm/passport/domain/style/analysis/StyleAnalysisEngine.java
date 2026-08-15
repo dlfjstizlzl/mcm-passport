@@ -31,7 +31,12 @@ public class StyleAnalysisEngine {
 					false
 			);
 		} catch (RuntimeException exception) {
-			log.warn("Style analysis provider returned an unusable result; applying rule-based fallback", exception);
+			// Structured-output parsing exceptions can contain the raw model response. Keep Journey
+			// content out of application logs while retaining the failure category for operations.
+			log.warn(
+					"Style analysis provider returned an unusable result; applying rule-based fallback (type={})",
+					exception.getClass().getSimpleName()
+			);
 			return new StyleAnalysisDecision(
 					validator.validate(fallback.analyze(journeyData)),
 					true

@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "mcm.style.analysis.provider=mock")
 class StyleApiIntegrationTest {
 
 	private static final String STYLE_SPOT_CODE = "GATE-S1";
