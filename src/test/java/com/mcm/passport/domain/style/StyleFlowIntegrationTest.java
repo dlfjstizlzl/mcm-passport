@@ -1,0 +1,294 @@
+package com.mcm.passport.domain.style;
+
+import com.mcm.passport.domain.journey.entity.JourneyResponse;
+import com.mcm.passport.domain.journey.entity.JourneyStamp;
+import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
+import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
+import com.mcm.passport.domain.passport.entity.PassportSession;
+import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
+import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
+import com.mcm.passport.domain.product.entity.Product;
+import com.mcm.passport.domain.product.entity.ProductTag;
+import com.mcm.passport.domain.product.repository.ProductRepository;
+import com.mcm.passport.domain.product.repository.ProductTagRepository;
+import com.mcm.passport.domain.style.analysis.StyleAnalysisDecision;
+import com.mcm.passport.domain.style.analysis.ValidatedStyleAnalysis;
+import com.mcm.passport.domain.style.dto.JourneySouvenirResponse;
+import com.mcm.passport.domain.style.dto.StyleResultResponse;
+import com.mcm.passport.domain.style.dto.StyleSpotResponse;
+import com.mcm.passport.domain.style.entity.CityBackground;
+import com.mcm.passport.domain.style.entity.CityCode;
+import com.mcm.passport.domain.style.entity.RecommendedProduct;
+import com.mcm.passport.domain.style.entity.StyleMood;
+import com.mcm.passport.domain.style.entity.StyleSpot;
+import com.mcm.passport.domain.style.entity.StyleSpotStatus;
+import com.mcm.passport.domain.style.repository.JourneySouvenirRepository;
+import com.mcm.passport.domain.style.repository.StyleResultRepository;
+import com.mcm.passport.domain.style.repository.StyleSpotRepository;
+import com.mcm.passport.domain.style.service.JourneySouvenirService;
+import com.mcm.passport.domain.style.service.JourneySouvenirCreation;
+import com.mcm.passport.domain.style.service.StyleAnalysisService;
+import com.mcm.passport.domain.style.service.StyleAnalysisPreparation;
+import com.mcm.passport.domain.style.service.StyleAnalysisTransactionService;
+import com.mcm.passport.domain.style.service.StyleSpotService;
+import com.mcm.passport.global.exception.BusinessException;
+import com.mcm.passport.global.exception.ErrorCode;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@SpringBootTest
+class StyleFlowIntegrationTest {
+
+	private static final String STYLE_SPOT_CODE = "GATE-S1";
+
+	@Autowired
+	private StyleSpotService styleSpotService;
+
+	@Autowired
+	private StyleAnalysisService styleAnalysisService;
+
+	@Autowired
+	private StyleAnalysisTransactionService styleAnalysisTransactionService;
+
+	@Autowired
+	private JourneySouvenirService journeySouvenirService;
+
+	@Autowired
+	private PassportSessionRepository passportSessionRepository;
+
+	@Autowired
+	private JourneyResponseRepository journeyResponseRepository;
+
+	@Autowired
+	private JourneyStampRepository journeyStampRepository;
+
+	@Autowired
+	private ProductRepository productRepository;
+
+	@Autowired
+	private ProductTagRepository productTagRepository;
+
+	@Autowired
+	private StyleSpotRepository styleSpotRepository;
+
+	@Autowired
+	private StyleResultRepository styleResultRepository;
+
+	@Autowired
+	private JourneySouvenirRepository journeySouvenirRepository;
+
+	@BeforeEach
+	void setUp() {
+		cleanDatabase();
+		styleSpotRepository.saveAndFlush(StyleSpot.waiting(STYLE_SPOT_CODE));
+	}
+
+	@AfterEach
+	void tearDown() {
+		cleanDatabase();
+		styleSpotRepository.saveAndFlush(StyleSpot.waiting(STYLE_SPOT_CODE));
+	}
+
+	@Test
+	void completesStyleAndResultFlowFromReadyToBoardSession() {
+		PassportSession passportSession = createJourneyData();
+
+		StyleSpotResponse connected = styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+
+		assertThat(connected.status()).isEqualTo(StyleSpotStatus.CONNECTED);
+		assertThat(connected.passportSessionId()).isEqualTo(passportSession.getId());
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.STYLE_SPOT);
+
+		StyleResultResponse analyzed = styleAnalysisService.analyze(STYLE_SPOT_CODE);
+
+		assertThat(analyzed.cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD.name());
+		assertThat(analyzed.recommendedProductCode()).isEqualTo(RecommendedProduct.STARK_BACKPACK.name());
+		assertThat(analyzed.styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT.name());
+		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTERDARK.name());
+		assertThat(analyzed.matchScore()).isEqualTo(92);
+		assertThat(analyzed.usedFallback()).isFalse();
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.RESULT);
+
+		StyleResultResponse fetchedResult = styleAnalysisService.getResult(STYLE_SPOT_CODE);
+		StyleResultResponse duplicateAnalysis = styleAnalysisService.analyze(STYLE_SPOT_CODE);
+
+		assertThat(fetchedResult.id()).isEqualTo(analyzed.id());
+		assertThat(fetchedResult.passportSessionId()).isEqualTo(passportSession.getId());
+		assertThat(duplicateAnalysis.id()).isEqualTo(analyzed.id());
+		assertThat(styleResultRepository.count()).isEqualTo(1);
+
+		JourneySouvenirCreation created = journeySouvenirService.create(passportSession.getId());
+		JourneySouvenirCreation duplicate = journeySouvenirService.create(passportSession.getId());
+		JourneySouvenirResponse createdSouvenir = created.souvenir();
+		JourneySouvenirResponse duplicateCreate = duplicate.souvenir();
+		JourneySouvenirResponse fetchedSouvenir = journeySouvenirService.get(passportSession.getId());
+
+		assertThat(created.created()).isTrue();
+		assertThat(duplicate.created()).isFalse();
+		assertThat(duplicateCreate.id()).isEqualTo(createdSouvenir.id());
+		assertThat(fetchedSouvenir.id()).isEqualTo(createdSouvenir.id());
+		assertThat(journeySouvenirRepository.count()).isEqualTo(1);
+		assertThat(fetchedSouvenir.journeyStamps()).contains("CITY_MOOD_ROOM");
+		assertThat(fetchedSouvenir.taggedProductCodes()).contains(RecommendedProduct.STARK_BACKPACK.name());
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.COMPLETED);
+		assertThat(reloadSession(passportSession).getCompletedAt()).isNotNull();
+
+		StyleSpotResponse reset = styleSpotService.reset(STYLE_SPOT_CODE);
+
+		assertThat(reset.status()).isEqualTo(StyleSpotStatus.RESET);
+		assertThat(reset.passportSessionId()).isNull();
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.RESET);
+	}
+
+	@Test
+	void rejectsStyleSpotConnectionBeforeBoardingIsReady() {
+		PassportSession activeSession = passportSessionRepository.saveAndFlush(PassportSession.start());
+
+		assertThatThrownBy(() -> styleSpotService.connect(STYLE_SPOT_CODE, activeSession.getId()))
+				.isInstanceOfSatisfying(BusinessException.class, exception ->
+						assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_SESSION_STATUS));
+
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.WAITING);
+	}
+
+	@Test
+	void rejectsAnalysisWhenReadySessionHasNoJourneyData() {
+		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+
+		assertThatThrownBy(() -> styleAnalysisService.analyze(STYLE_SPOT_CODE))
+				.isInstanceOfSatisfying(BusinessException.class, exception ->
+						assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.JOURNEY_NOT_COMPLETED));
+
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.CONNECTED);
+		assertThat(styleResultRepository.count()).isZero();
+	}
+
+	@Test
+	void resetRecoversAnAnalyzingSpotAndAllowsReconnect() {
+		PassportSession passportSession = createJourneyData();
+		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+		StyleAnalysisPreparation preparation = styleAnalysisTransactionService.prepare(STYLE_SPOT_CODE);
+
+		assertThat(preparation.alreadyCompleted()).isFalse();
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.ANALYZING);
+
+		StyleSpotResponse reset = styleSpotService.reset(STYLE_SPOT_CODE);
+
+		assertThat(reset.status()).isEqualTo(StyleSpotStatus.RESET);
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.READY_TO_BOARD);
+
+		StyleSpotResponse reconnected = styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+
+		assertThat(reconnected.status()).isEqualTo(StyleSpotStatus.CONNECTED);
+	}
+
+	@Test
+	void staleAnalysisCannotCompleteOrFailANewerAttemptForTheSameSession() {
+		PassportSession passportSession = createJourneyData();
+		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+		StyleAnalysisPreparation stalePreparation = styleAnalysisTransactionService.prepare(STYLE_SPOT_CODE);
+
+		styleSpotService.reset(STYLE_SPOT_CODE);
+		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+		StyleAnalysisPreparation currentPreparation = styleAnalysisTransactionService.prepare(STYLE_SPOT_CODE);
+		StyleAnalysisDecision decision = validAnalysisDecision();
+
+		assertThat(currentPreparation.analysisAttempt()).isGreaterThan(stalePreparation.analysisAttempt());
+		assertThatThrownBy(() -> styleAnalysisTransactionService.complete(stalePreparation, decision))
+				.isInstanceOfSatisfying(BusinessException.class, exception ->
+						assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_SESSION_STATUS));
+		assertThat(styleResultRepository.count()).isZero();
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.ANALYZING);
+
+		styleAnalysisTransactionService.fail(stalePreparation);
+
+		StyleSpot analyzingSpot = styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow();
+		assertThat(analyzingSpot.getStatus()).isEqualTo(StyleSpotStatus.ANALYZING);
+		assertThat(analyzingSpot.getAnalysisAttempt()).isEqualTo(currentPreparation.analysisAttempt());
+
+		StyleResultResponse completed = styleAnalysisTransactionService.complete(currentPreparation, decision);
+
+		assertThat(completed.passportSessionId()).isEqualTo(passportSession.getId());
+		assertThat(styleResultRepository.count()).isEqualTo(1);
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.RESULT);
+	}
+
+	private PassportSession createJourneyData() {
+		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		journeyResponseRepository.saveAll(List.of(
+				JourneyResponse.create(
+						passportSession,
+						"CITY_MOOD_ROOM",
+						"TODAY_MOOD",
+						"AFTERDARK",
+						"Afterdark movement"
+				),
+				JourneyResponse.create(
+						passportSession,
+						"MOVEMENT_DECK",
+						"PACE",
+						"DYNAMIC",
+						"Dynamic movement"
+				)
+		));
+		journeyStampRepository.saveAll(List.of(
+				JourneyStamp.create(passportSession, "ORIGIN_GATE"),
+				JourneyStamp.create(passportSession, "MATERIAL_LOUNGE"),
+				JourneyStamp.create(passportSession, "MOVEMENT_DECK"),
+				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM"),
+				JourneyStamp.create(passportSession, "PRODUCT_TAGGING")
+		));
+		Product product = productRepository.saveAndFlush(Product.create(
+				RecommendedProduct.STARK_BACKPACK.name(),
+				RecommendedProduct.STARK_BACKPACK.getDisplayName()
+		));
+		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
+		return passportSession;
+	}
+
+	private PassportSession reloadSession(PassportSession passportSession) {
+		return passportSessionRepository.findById(passportSession.getId()).orElseThrow();
+	}
+
+	private StyleAnalysisDecision validAnalysisDecision() {
+		return new StyleAnalysisDecision(
+				new ValidatedStyleAnalysis(
+						CityCode.BERLIN_AFTERDARK_NOMAD,
+						RecommendedProduct.STARK_BACKPACK,
+						StyleMood.AFTERDARK_MOVEMENT,
+						CityBackground.BERLIN_AFTERDARK,
+						"A valid result for analysis attempt regression testing.",
+						92
+				),
+				false
+		);
+	}
+
+	private void cleanDatabase() {
+		journeySouvenirRepository.deleteAll();
+		journeySouvenirRepository.flush();
+		styleResultRepository.deleteAllInBatch();
+		styleSpotRepository.deleteAllInBatch();
+		productTagRepository.deleteAllInBatch();
+		journeyStampRepository.deleteAllInBatch();
+		journeyResponseRepository.deleteAllInBatch();
+		productRepository.deleteAllInBatch();
+		passportSessionRepository.deleteAllInBatch();
+	}
+}
