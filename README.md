@@ -287,6 +287,8 @@ fail-fast합니다. API key는 README, YAML, Git, 로그에 값을 기록하지 
 
 ```yaml
 mcm:
+  demo:
+    seed: ${MCM_DEMO_SEED:false}
   style:
     analysis:
       provider: ${MCM_STYLE_ANALYSIS_PROVIDER:mock}
@@ -309,24 +311,131 @@ DB lock을 해제하고 외부 Responses API를 호출하며, 검증된 결과�
 실패 시 현재 attempt만 `CONNECTED`로 복구합니다. 이 분리는 prompt/provider,
 validator, fallback, JPA transaction의 책임을 섞지 않기 위한 것입니다.
 
-#### 실제 API smoke test
+#### 선택적 BE2 demo Journey seed
 
-실제 OpenAI 호출은 자동 테스트와 분리합니다. 자동 테스트와 CI는 기본 mock provider를
-사용하고 API key를 요구하거나 외부 네트워크를 호출하지 않아야 합니다. 실제 연결을
-확인할 때만 다음 smoke 절차를 수행합니다.
+BE1 없이 수동 연동을 확인할 때만 `MCM_DEMO_SEED=true`를 설정합니다. 기본값은
+`false`이며, 비활성 상태에서는 demo 세션이나 Journey fixture를 생성하지 않습니다.
+이 설정은 Style Analysis provider 선택과 독립적이므로 `mock + seed=true`도 사용할 수
+있습니다.
 
-1. API key를 환경의 secret manager 또는 로컬 비공개 실행 설정에 등록합니다. 값을
-   README, 명령 기록, 화면 캡처에 남기지 않습니다.
-2. `MCM_STYLE_ANALYSIS_PROVIDER=openai`, `OPENAI_MODEL`, 필요하면 duration 형식의
-   `OPENAI_TIMEOUT`을 실행 환경에 설정합니다.
-3. 테스트용 `READY_TO_BOARD` 세션에 Response와 Stamp를 준비합니다. ProductTag는
-   선택 사항입니다.
-4. Style Spot 연결 API를 호출한 뒤 분석 API를 한 번 호출합니다.
-5. 응답이 `200 OK`, `usedFallback=false`이고 저장 후 결과 조회가 같은 ID와 catalogue
-   값을 반환하는지 확인합니다. `usedFallback=true`라면 전체 흐름은 복구됐지만 실제
-   OpenAI smoke는 성공한 것으로 판정하지 않습니다.
-6. Souvenir 생성 전 세션이 `STYLE_SPOT`, 생성 후 `COMPLETED`인지 확인하고, 사용량과
-   민감 정보가 없는 애플리케이션 로그를 함께 점검합니다.
+활성화하면 다음 두 개의 `READY_TO_BOARD` 세션을 한 번만 준비합니다.
+
+| 로그 이름 | Response | Stamp | ProductTag |
+|---|---|---|---|
+| `withoutProductTagSessionId` | `AFTERDARK`, `DYNAMIC` | Origin, Material, Movement, City Mood | 없음 |
+| `withProductTagSessionId` | `AFTERDARK`, `DYNAMIC` | Origin, Material, Movement, City Mood | `STARK_BACKPACK` |
+
+이 값은 BE2 연동 확인을 위한 **prototype demo fixture**이며 확정 기획 데이터가 아닙니다.
+이 initializer는 개발자 로컬 DB의 **단일 애플리케이션 인스턴스**에서만 사용합니다.
+공유·운영 DB에서는 활성화하지 않으며, 여러 인스턴스가 같은 DB에 동시에 seed하는
+분산 초기화는 지원하지 않습니다.
+`demo_journey_seeds` marker가 각 fixture와 PassportSession을 연결하므로 같은 로컬 DB에서
+애플리케이션을 다시 시작해도 fixture를 계속 중복 생성하지 않습니다. READY 세션은
+그대로 재사용하고, 진행 중인 `STYLE_SPOT` 세션은 명시적인 복구를 위해 보존합니다.
+`COMPLETED` 세션만 다음 시작에서 새 READY fixture로 한 번 교체합니다.
+활성화된 경우에만 다음 형태로 session ID를 로그에 남기며 Response 내용이나 API key는
+기록하지 않습니다.
+
+```text
+Demo Journey fixture available: withoutProductTagSessionId=1, withProductTagSessionId=2
+```
+
+#### BE1 없이 실제 OpenAI smoke test
+
+실제 OpenAI 호출은 자동 테스트 및 CI와 분리합니다. 먼저 API key를 로컬 secret manager,
+IDE의 비공개 Run Configuration 또는 현재 프로세스 환경에 `OPENAI_API_KEY`로 등록합니다.
+실제 값과 실제 key처럼 보이는 예시는 문서나 Git에 기록하지 않습니다. 이어서 다음
+환경변수를 설정합니다.
+
+```text
+MCM_STYLE_ANALYSIS_PROVIDER=openai
+OPENAI_API_KEY=(로컬 비공개 환경에서 설정)
+OPENAI_MODEL=(계정에서 사용할 수 있는 model ID)
+MCM_DEMO_SEED=true
+OPENAI_TIMEOUT=30s              # 선택 사항
+```
+
+MySQL 로컬 설정을 준비한 뒤 `Windows: .\gradlew.bat bootRun` 또는
+`macOS/Linux: ./gradlew bootRun`으로 애플리케이션을 시작합니다. 이후 다음 순서로
+ProductTag 없는 세션을 먼저 확인합니다. 아래 `<SESSION_ID>`는 시작 로그의
+`withoutProductTagSessionId` 숫자로 바꿉니다.
+
+같은 DB에서 이전 smoke가 중단됐다면 먼저 `style_spots`의 `GATE-S1` 상태를 확인합니다.
+`CONNECTED` 또는 `ANALYZING`이면 `POST /api/style-spots/GATE-S1/reset`을 호출한 뒤
+로그의 같은 session ID를 사용합니다. `RESULT`이면 기존 결과 조회와 Souvenir 생성을
+마쳐 세션을 `COMPLETED`로 만들고 Spot을 reset한 다음 애플리케이션을 재시작하면 새
+READY fixture가 준비됩니다. Demo initializer는 Journey fixture만 준비하며 공유 Display
+상태를 임의로 reset하지 않습니다. 기본 base URL은 `http://localhost:8080`이며 아래
+요청은 Postman, IntelliJ HTTP Client 또는 curl 같은 HTTP client에서 실행할 수 있습니다.
+
+1. Style Spot을 연결합니다.
+
+   ```http
+   POST /api/style-spots/GATE-S1/connections
+   Content-Type: application/json
+
+   {
+     "passportSessionId": <SESSION_ID>
+   }
+   ```
+
+2. 요청 본문 없이 실제 OpenAI 분석을 시작합니다.
+
+   ```http
+   POST /api/style-spots/GATE-S1/analysis
+   ```
+
+3. 분석 응답과 저장된 결과를 확인합니다.
+
+   ```http
+   GET /api/style-spots/GATE-S1/result
+   ```
+
+   다음 조건을 모두 확인합니다.
+
+   - 분석 HTTP 상태가 `200`
+   - `usedFallback=false`
+   - City Code, Recommended Product, Style Mood, Background, description이 존재
+   - `matchScore`가 0~100
+   - DB의 `passport_sessions.status`가 아직 `STYLE_SPOT`
+
+   실제 OpenAI Provider smoke의 성공 조건은 반드시 **`HTTP 200 AND
+   usedFallback=false`**입니다. `usedFallback=true`이면 **전체 BE2 fallback flow는
+   정상 작동했지만 OpenAI Provider smoke test는 실패**한 것으로 판정합니다.
+
+4. 요청 본문 없이 Souvenir를 생성하고 세션 완료를 확인합니다.
+
+   ```http
+   POST /api/passport-sessions/<SESSION_ID>/souvenir
+   ```
+
+   DB의 `passport_sessions.status`가 `COMPLETED`이고 `completed_at`이 채워졌는지
+   확인합니다.
+
+5. Style Spot을 reset합니다.
+
+   ```http
+   POST /api/style-spots/GATE-S1/reset
+   ```
+
+6. 로그의 `withProductTagSessionId`를 새 `<SESSION_ID>`로 사용해 1~5단계를 반복합니다.
+   두 번째 입력에는 `STARK_BACKPACK`이 optional ProductTag 분석 신호로 포함됩니다.
+
+상태 확인용 로컬 DB 조회 예시는 다음과 같습니다. ID는 demo 로그 값으로 바꿉니다.
+
+```sql
+SELECT id, status, completed_at
+FROM passport_sessions
+WHERE id = <SESSION_ID>;
+```
+
+#### GitHub Actions Backend CI
+
+개인 저장소의 `.github/workflows/backend-ci.yml`은 push, pull request, 수동 실행에서
+Ubuntu와 Java 21로 Gradle wrapper의 `clean build`를 실행합니다. CI는
+`MCM_STYLE_ANALYSIS_PROVIDER=mock`, `MCM_DEMO_SEED=false`, 테스트용 H2를 명시하며
+`OPENAI_API_KEY`나 MySQL을 요구하지 않습니다. 따라서 CI에서는 실제 OpenAI 호출이나
+비용이 발생하지 않으며 배포, Docker build도 수행하지 않습니다.
 
 현재 `PassportSession`, `JourneyResponse`, `JourneyStamp`, `Product`, `ProductTag`,
 `JpaJourneyDataReader`는 BE2 프로토타입 실행을 위한 최소 공통 모델입니다. 실제 BE1
