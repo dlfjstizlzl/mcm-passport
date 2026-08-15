@@ -1,6 +1,7 @@
 package com.mcm.passport.domain.style.analysis;
 
 import com.mcm.passport.domain.journey.service.JourneyDataSnapshot;
+import com.mcm.passport.domain.style.catalog.PrototypeStyleCatalog;
 import com.mcm.passport.domain.style.entity.CityCode;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -8,21 +9,26 @@ import org.springframework.stereotype.Component;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-@Component
+/**
+ * Prototype-only deterministic provider used to exercise the complete backend flow without an
+ * external AI call. Replace this bean through {@link StyleAnalysisProvider} for production.
+ */
+@Component("prototypeMockStyleAnalysisProvider")
 @ConditionalOnProperty(name = "mcm.style.analysis.provider", havingValue = "mock", matchIfMissing = true)
 public class MockStyleAnalysisProvider implements StyleAnalysisProvider {
 
 	@Override
 	public StyleAnalysisCandidate analyze(JourneyDataSnapshot journeyData) {
 		String signals = collectSignals(journeyData);
-		CityCode profile = selectProfile(signals);
+		CityCode cityCode = selectProfile(signals);
+		PrototypeStyleCatalog.CityProfile profile = PrototypeStyleCatalog.cityProfile(cityCode);
 
 		return new StyleAnalysisCandidate(
-				profile.name(),
-				profile.getDefaultProduct().name(),
-				profile.getDefaultMood().name(),
-				profile.getBackground().name(),
-				profile.getDefaultDescription(),
+				cityCode.name(),
+				profile.defaultProduct().name(),
+				profile.defaultMood().name(),
+				profile.background().name(),
+				profile.defaultDescription(),
 				matchScore(journeyData)
 		);
 	}

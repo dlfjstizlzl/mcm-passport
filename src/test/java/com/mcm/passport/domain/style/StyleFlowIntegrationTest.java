@@ -98,7 +98,7 @@ class StyleFlowIntegrationTest {
 	}
 
 	@Test
-	void completesStyleAndResultFlowFromReadyToBoardSession() {
+	void completesCurrentPrototypeStyleAndResultFlowFromReadyToBoardSession() {
 		PassportSession passportSession = createJourneyData();
 
 		StyleSpotResponse connected = styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
@@ -117,6 +117,7 @@ class StyleFlowIntegrationTest {
 		assertThat(analyzed.usedFallback()).isFalse();
 		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
 				.isEqualTo(StyleSpotStatus.RESULT);
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.STYLE_SPOT);
 
 		StyleResultResponse fetchedResult = styleAnalysisService.getResult(STYLE_SPOT_CODE);
 		StyleResultResponse duplicateAnalysis = styleAnalysisService.analyze(STYLE_SPOT_CODE);
@@ -127,12 +128,15 @@ class StyleFlowIntegrationTest {
 		assertThat(styleResultRepository.count()).isEqualTo(1);
 
 		JourneySouvenirCreation created = journeySouvenirService.create(passportSession.getId());
+
+		assertThat(created.created()).isTrue();
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.COMPLETED);
+
 		JourneySouvenirCreation duplicate = journeySouvenirService.create(passportSession.getId());
 		JourneySouvenirResponse createdSouvenir = created.souvenir();
 		JourneySouvenirResponse duplicateCreate = duplicate.souvenir();
 		JourneySouvenirResponse fetchedSouvenir = journeySouvenirService.get(passportSession.getId());
 
-		assertThat(created.created()).isTrue();
 		assertThat(duplicate.created()).isFalse();
 		assertThat(duplicateCreate.id()).isEqualTo(createdSouvenir.id());
 		assertThat(fetchedSouvenir.id()).isEqualTo(createdSouvenir.id());
@@ -148,6 +152,25 @@ class StyleFlowIntegrationTest {
 		assertThat(reset.passportSessionId()).isNull();
 		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
 				.isEqualTo(StyleSpotStatus.RESET);
+	}
+
+	@Test
+	void prototypeFlowAnalyzesReadySessionWithoutOptionalProductTag() {
+		PassportSession passportSession = createJourneyDataWithoutProductTag();
+
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.READY_TO_BOARD);
+		assertThat(productTagRepository.count()).isZero();
+
+		StyleSpotResponse connected = styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
+		StyleResultResponse analyzed = styleAnalysisService.analyze(STYLE_SPOT_CODE);
+
+		assertThat(connected.status()).isEqualTo(StyleSpotStatus.CONNECTED);
+		assertThat(analyzed.id()).isNotNull();
+		assertThat(analyzed.passportSessionId()).isEqualTo(passportSession.getId());
+		assertThat(styleResultRepository.count()).isEqualTo(1);
+		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
+				.isEqualTo(StyleSpotStatus.RESULT);
+		assertThat(reloadSession(passportSession).getStatus()).isEqualTo(PassportSessionStatus.STYLE_SPOT);
 	}
 
 	@Test
@@ -197,7 +220,7 @@ class StyleFlowIntegrationTest {
 	}
 
 	@Test
-	void staleAnalysisCannotCompleteOrFailANewerAttemptForTheSameSession() {
+	void stalePrototypeAnalysisAttemptCannotOverwriteTheCurrentResult() {
 		PassportSession passportSession = createJourneyData();
 		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
 		StyleAnalysisPreparation stalePreparation = styleAnalysisTransactionService.prepare(STYLE_SPOT_CODE);
@@ -230,6 +253,16 @@ class StyleFlowIntegrationTest {
 	}
 
 	private PassportSession createJourneyData() {
+		PassportSession passportSession = createJourneyDataWithoutProductTag();
+		Product product = productRepository.saveAndFlush(Product.create(
+				RecommendedProduct.STARK_BACKPACK.name(),
+				RecommendedProduct.STARK_BACKPACK.getDisplayName()
+		));
+		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
+		return passportSession;
+	}
+
+	private PassportSession createJourneyDataWithoutProductTag() {
 		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
 		journeyResponseRepository.saveAll(List.of(
 				JourneyResponse.create(
@@ -254,11 +287,6 @@ class StyleFlowIntegrationTest {
 				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM"),
 				JourneyStamp.create(passportSession, "PRODUCT_TAGGING")
 		));
-		Product product = productRepository.saveAndFlush(Product.create(
-				RecommendedProduct.STARK_BACKPACK.name(),
-				RecommendedProduct.STARK_BACKPACK.getDisplayName()
-		));
-		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
 		return passportSession;
 	}
 

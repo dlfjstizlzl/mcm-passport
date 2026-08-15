@@ -16,8 +16,22 @@ class JourneyDataPolicyTest {
 	private final JourneyDataPolicy policy = new JourneyDataPolicy();
 
 	@Test
-	void acceptsSnapshotWithResponsesStampsAndTaggedProducts() {
+	void prototypePolicyAcceptsResponsesAndStampsWithOptionalTaggedProducts() {
 		assertThatCode(() -> policy.validateForAnalysis(completeJourneyData()))
+				.doesNotThrowAnyException();
+	}
+
+	@Test
+	void prototypePolicyAcceptsResponsesAndStampsWithoutTaggedProducts() {
+		JourneyDataSnapshot complete = completeJourneyData();
+		JourneyDataSnapshot withoutProductTag = new JourneyDataSnapshot(
+				complete.sessionId(),
+				complete.responses(),
+				complete.stamps(),
+				List.of()
+		);
+
+		assertThatCode(() -> policy.validateForAnalysis(withoutProductTag))
 				.doesNotThrowAnyException();
 	}
 
@@ -29,16 +43,29 @@ class JourneyDataPolicyTest {
 	}
 
 	@Test
-	void rejectsJourneyWithoutTaggedProducts() {
+	void prototypePolicyStillRequiresResponseSignals() {
 		JourneyDataSnapshot complete = completeJourneyData();
-		JourneyDataSnapshot missingProduct = new JourneyDataSnapshot(
+		JourneyDataSnapshot withoutResponses = new JourneyDataSnapshot(
 				complete.sessionId(),
-				complete.responses(),
+				List.of(),
 				complete.stamps(),
-				List.of()
+				complete.taggedProducts()
 		);
 
-		assertJourneyNotCompleted(missingProduct);
+		assertJourneyNotCompleted(withoutResponses);
+	}
+
+	@Test
+	void prototypePolicyStillRequiresJourneyProgressSignals() {
+		JourneyDataSnapshot complete = completeJourneyData();
+		JourneyDataSnapshot withoutStamps = new JourneyDataSnapshot(
+				complete.sessionId(),
+				complete.responses(),
+				List.of(),
+				complete.taggedProducts()
+		);
+
+		assertJourneyNotCompleted(withoutStamps);
 	}
 
 	private JourneyDataSnapshot completeJourneyData() {

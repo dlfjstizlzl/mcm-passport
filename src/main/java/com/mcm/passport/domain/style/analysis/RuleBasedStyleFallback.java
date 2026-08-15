@@ -1,6 +1,7 @@
 package com.mcm.passport.domain.style.analysis;
 
 import com.mcm.passport.domain.journey.service.JourneyDataSnapshot;
+import com.mcm.passport.domain.style.catalog.PrototypeStyleCatalog;
 import com.mcm.passport.domain.style.entity.CityCode;
 import com.mcm.passport.domain.style.entity.RecommendedProduct;
 import org.springframework.stereotype.Component;
@@ -8,19 +9,24 @@ import org.springframework.stereotype.Component;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-@Component
+/**
+ * Prototype-only deterministic fallback over the curated MVP catalog. It keeps the flow usable
+ * when the configured {@link StyleAnalysisProvider} fails or returns an invalid candidate.
+ */
+@Component("prototypeRuleBasedStyleFallback")
 public class RuleBasedStyleFallback {
 
 	public StyleAnalysisCandidate analyze(JourneyDataSnapshot journeyData) {
 		CityCode cityCode = selectProfile(journeyData);
-		RecommendedProduct product = firstCuratedTaggedProduct(journeyData, cityCode.getDefaultProduct());
+		PrototypeStyleCatalog.CityProfile profile = PrototypeStyleCatalog.cityProfile(cityCode);
+		RecommendedProduct product = firstCuratedTaggedProduct(journeyData, profile.defaultProduct());
 
 		return new StyleAnalysisCandidate(
 				cityCode.name(),
 				product.name(),
-				cityCode.getDefaultMood().name(),
-				cityCode.getBackground().name(),
-				cityCode.getDefaultDescription(),
+				profile.defaultMood().name(),
+				profile.background().name(),
+				profile.defaultDescription(),
 				85
 		);
 	}

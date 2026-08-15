@@ -39,7 +39,7 @@ class StyleAnalysisEngineTest {
 	}
 
 	@Test
-	void invalidCityCodeUsesRuleBasedFallback() {
+	void invalidCityCodeUsesCurrentPrototypeFallback() {
 		StyleAnalysisProvider provider = journeyData -> candidate("UNLISTED_CITY", CityBackground.BERLIN_AFTERDARK.name());
 
 		StyleAnalysisDecision decision = engine(provider).analyze(journeyData());
@@ -48,7 +48,7 @@ class StyleAnalysisEngineTest {
 	}
 
 	@Test
-	void invalidProductUsesRuleBasedFallback() {
+	void invalidProductUsesCurrentPrototypeFallback() {
 		StyleAnalysisProvider provider = journeyData -> new StyleAnalysisCandidate(
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				"UNLISTED_PRODUCT",
@@ -64,7 +64,7 @@ class StyleAnalysisEngineTest {
 	}
 
 	@Test
-	void backgroundNotCuratedForCityUsesRuleBasedFallback() {
+	void backgroundNotCuratedForCityUsesCurrentPrototypeFallback() {
 		StyleAnalysisProvider provider = journeyData -> candidate(
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				CityBackground.SEOUL_NEON_PULSE.name()
@@ -76,7 +76,7 @@ class StyleAnalysisEngineTest {
 	}
 
 	@Test
-	void providerExceptionUsesRuleBasedFallback() {
+	void providerExceptionUsesCurrentPrototypeFallback() {
 		StyleAnalysisProvider provider = journeyData -> {
 			throw new IllegalStateException("provider unavailable");
 		};
@@ -87,7 +87,7 @@ class StyleAnalysisEngineTest {
 	}
 
 	@Test
-	void fallbackUsesTheTaggedProductAndResponsesToSelectAnotherProfile() {
+	void currentPrototypeFallbackMayUseOptionalTaggedProductAsAnAdditionalSignal() {
 		StyleAnalysisProvider provider = journeyData -> {
 			throw new IllegalStateException("provider unavailable");
 		};
@@ -96,8 +96,8 @@ class StyleAnalysisEngineTest {
 				List.of(new JourneyDataSnapshot.ResponseSignal(
 						"MATERIAL_LOUNGE",
 						"TODAY_MOOD",
-						"ELEGANT",
-						"Classic elegance"
+						"BALANCED",
+						"Balanced movement"
 				)),
 				List.of(new JourneyDataSnapshot.StampSignal("MATERIAL_LOUNGE")),
 				List.of(new JourneyDataSnapshot.ProductSignal(

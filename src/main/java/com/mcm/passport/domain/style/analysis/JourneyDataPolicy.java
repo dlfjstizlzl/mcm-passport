@@ -10,8 +10,7 @@ public class JourneyDataPolicy {
 
 	public void validateForAnalysis(JourneyDataSnapshot journeyData) {
 		if (journeyData.responses().isEmpty()
-				|| journeyData.stamps().isEmpty()
-				|| journeyData.taggedProducts().isEmpty()) {
+				|| journeyData.stamps().isEmpty()) {
 			throw new BusinessException(ErrorCode.JOURNEY_NOT_COMPLETED);
 		}
 	}
