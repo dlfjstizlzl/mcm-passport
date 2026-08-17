@@ -8,4 +8,6 @@ import java.util.List;
 public interface ProductTagRepository extends JpaRepository<ProductTag, Long> {
 
 	List<ProductTag> findAllByPassportSession_IdOrderByIdAsc(Long passportSessionId);
+
+	boolean existsByPassportSession_IdAndProduct_Id(Long passportSessionId, Long productId);
 }

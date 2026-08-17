@@ -153,11 +153,16 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 	}
 
 	private Product findOrCreateStarkBackpack() {
-		String productCode = RecommendedProduct.STARK_BACKPACK.name();
-		return productRepository.findByCode(productCode)
+		String productName = RecommendedProduct.STARK_BACKPACK.getDisplayName();
+		return productRepository.findFirstByName(productName)
 				.orElseGet(() -> productRepository.save(Product.create(
-						productCode,
-						RecommendedProduct.STARK_BACKPACK.getDisplayName()
+						productName,
+						"BACKPACK",
+						"BLACK",
+						"VISETOS",
+						"STRUCTURED",
+						null,
+						true
 				)));
 	}
 }

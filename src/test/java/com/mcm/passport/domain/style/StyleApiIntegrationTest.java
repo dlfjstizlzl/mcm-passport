@@ -178,8 +178,13 @@ class StyleApiIntegrationTest {
 				stamp(passportSession, "CITY_MOOD_ROOM")
 		));
 		Product product = productRepository.saveAndFlush(Product.create(
-				RecommendedProduct.STARK_BACKPACK.name(),
-				RecommendedProduct.STARK_BACKPACK.getDisplayName()
+				RecommendedProduct.STARK_BACKPACK.getDisplayName(),
+				"BACKPACK",
+				"BLACK",
+				"VISETOS",
+				"STRUCTURED",
+				null,
+				true
 		));
 		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
 		return passportSession;
