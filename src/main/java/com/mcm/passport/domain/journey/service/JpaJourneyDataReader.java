@@ -1,6 +1,6 @@
 package com.mcm.passport.domain.journey.service;
 
-import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
+import com.mcm.passport.domain.journey.repository.GuideResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.repository.ProductTagRepository;
@@ -14,16 +14,16 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class JpaJourneyDataReader implements JourneyDataReader {
 
-	private final JourneyResponseRepository journeyResponseRepository;
+	private final GuideResponseRepository guideResponseRepository;
 	private final JourneyStampRepository journeyStampRepository;
 	private final ProductTagRepository productTagRepository;
 
 	public JpaJourneyDataReader(
-			JourneyResponseRepository journeyResponseRepository,
+			GuideResponseRepository guideResponseRepository,
 			JourneyStampRepository journeyStampRepository,
 			ProductTagRepository productTagRepository
 	) {
-		this.journeyResponseRepository = journeyResponseRepository;
+		this.guideResponseRepository = guideResponseRepository;
 		this.journeyStampRepository = journeyStampRepository;
 		this.productTagRepository = productTagRepository;
 	}
@@ -32,19 +32,19 @@ public class JpaJourneyDataReader implements JourneyDataReader {
 	public JourneyDataSnapshot read(Long passportSessionId) {
 		Objects.requireNonNull(passportSessionId, "passportSessionId must not be null");
 
-		List<JourneyDataSnapshot.ResponseSignal> responses = journeyResponseRepository
-				.findAllByPassportSession_IdOrderByIdAsc(passportSessionId)
+		List<JourneyDataSnapshot.ResponseSignal> responses = guideResponseRepository
+				.findAllForStyleAnalysis(passportSessionId)
 				.stream()
 				.map(response -> new JourneyDataSnapshot.ResponseSignal(
-						response.getSpotCode(),
-						response.getQuestionCode(),
-						response.getAnswerCode(),
-						response.getAnswerText()
+						response.getGuideQuestion().getJourneySpot().getCode(),
+						response.getGuideQuestion().getCode(),
+						response.getGuideOption().getCode(),
+						response.getGuideOption().getLabel()
 				))
 				.toList();
 
 		List<JourneyDataSnapshot.StampSignal> stamps = journeyStampRepository
-				.findAllByPassportSession_IdOrderByIdAsc(passportSessionId)
+				.findAllByPassportSession_IdOrderByJourneySpot_SequenceAscIdAsc(passportSessionId)
 				.stream()
 				.map(stamp -> new JourneyDataSnapshot.StampSignal(stamp.getJourneySpot().getCode()))
 				.toList();

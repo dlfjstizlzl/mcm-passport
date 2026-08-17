@@ -12,6 +12,6 @@ import java.util.Optional;
 public interface StyleSpotRepository extends JpaRepository<StyleSpot, String> {
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("select spot from StyleSpot spot left join fetch spot.passportSession where spot.code = :code")
+	@Query("select spot from StyleSpot spot where spot.code = :code")
 	Optional<StyleSpot> findByCodeForUpdate(@Param("code") String code);
 }
