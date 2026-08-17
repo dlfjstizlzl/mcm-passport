@@ -56,8 +56,8 @@ BE2는 BE1 Repository를 직접 조합하지 않고 공개 Service 또는 명시
 
 현재 프로토타입은 BE1이 Journey를 완료해 PassportSession을 `READY_TO_BOARD`로
 전환한 이후부터 동작합니다. 이 상태가 Style Spot 연결의 핵심 선행조건입니다. BE2는
-BE1 Repository를 직접 조합하지 않고 `JourneyDataReader` 공개 인터페이스를 통해
-Response, Stamp, 태그 제품을 분석 입력으로 읽습니다.
+BE1 Repository를 Style 계층에서 직접 조합하지 않고 `JpaJourneyDataReader` 구현을 통해
+실제 `GuideResponse`, `JourneyStamp`, 선택적인 `ProductTag`를 분석 입력으로 읽습니다.
 
 현재 분석 입력 정책은 Response와 Journey 진행을 나타내는 Stamp가 존재하는지
 확인하지만, 특정 Stamp 개수를 완료 조건으로 하드코딩하지 않습니다. ProductTag는
@@ -70,14 +70,19 @@ Response, Stamp, 태그 제품을 분석 입력으로 읽습니다.
 
 | Method | URL | 동작 |
 |------|------|------|
-| `POST` | `/api/style-spots/{spotCode}/connections` | `passportSessionId`로 Style Spot 연결 |
-| `POST` | `/api/style-spots/{spotCode}/analysis` | Journey 데이터 분석 및 결과 저장 |
-| `GET` | `/api/style-spots/{spotCode}/result` | 현재 Display 결과 조회 |
+| `POST` | `/api/style-spots/{styleSpotId}/connect` | StyleSpotSession 생성 및 동기 분석 |
+| `POST` | `/api/style-spot-sessions/{styleSpotSessionId}/disconnect` | 연결 종료 |
+| `GET` | `/api/style-spots/{styleSpotId}/display` | Spot 상태와 현재 결과 조회 |
+| `GET` | `/api/passport-sessions/{sessionId}/style-result` | 세션의 Style Result 조회 |
+| `POST/GET/DELETE` | `/api/passport-sessions/{sessionId}/portrait` | Portrait metadata 관리 |
 | `POST` | `/api/passport-sessions/{sessionId}/souvenir` | Souvenir 생성 및 세션 완료 |
 | `GET` | `/api/passport-sessions/{sessionId}/souvenir` | 저장된 Souvenir 조회 |
-| `POST` | `/api/style-spots/{spotCode}/reset` | Display 결과 제거 및 Spot reset |
+| `GET` | `/api/passport-sessions/{sessionId}/my-passport` | Journey와 결과 aggregate 조회 |
 
-### API 상세
+기존 `/connections`, `/analysis`, `/result`, `/reset` 경로는 prototype regression 확인을
+위해 호환 경로로 남아 있으며 신규 연동은 위 공식 API를 사용합니다.
+
+### Legacy prototype API 상세
 
 아래 예시는 프로토타입 fixture인 `GATE-S1`, PassportSession `1`을 사용합니다. 성공
 응답은 별도 공통 wrapper 없이 DTO가 JSON 본문으로 바로 반환됩니다. 시각 값과 DB ID는
@@ -319,8 +324,6 @@ fail-fast합니다. API key는 README, YAML, Git, 로그에 값을 기록하지 
 
 ```yaml
 mcm:
-  demo:
-    seed: ${MCM_DEMO_SEED:false}
   style:
     analysis:
       provider: ${MCM_STYLE_ANALYSIS_PROVIDER:mock}
@@ -344,34 +347,8 @@ DB lock을 해제하고 외부 Responses API를 호출하며, 검증된 결과�
 실패 시 현재 attempt만 `CONNECTED`로 복구합니다. 이 분리는 prompt/provider,
 validator, fallback, JPA transaction의 책임을 섞지 않기 위한 것입니다.
 
-#### 선택적 BE2 demo Journey seed
-
-BE1 없이 수동 연동을 확인할 때만 `MCM_DEMO_SEED=true`를 설정합니다. 기본값은
-`false`이며, 비활성 상태에서는 demo 세션이나 Journey fixture를 생성하지 않습니다.
-이 설정은 Style Analysis provider 선택과 독립적이므로 `mock + seed=true`도 사용할 수
-있습니다.
-
-활성화하면 다음 두 개의 `READY_TO_BOARD` 세션을 한 번만 준비합니다.
-
-| 로그 이름 | Response | Stamp | ProductTag |
-|---|---|---|---|
-| `withoutProductTagSessionId` | `AFTERDARK`, `DYNAMIC` | Origin, Material, Movement, City Mood | 없음 |
-| `withProductTagSessionId` | `AFTERDARK`, `DYNAMIC` | Origin, Material, Movement, City Mood | `STARK_BACKPACK` |
-
-이 값은 BE2 연동 확인을 위한 **prototype demo fixture**이며 확정 기획 데이터가 아닙니다.
-이 initializer는 개발자 로컬 DB의 **단일 애플리케이션 인스턴스**에서만 사용합니다.
-공유·운영 DB에서는 활성화하지 않으며, 여러 인스턴스가 같은 DB에 동시에 seed하는
-분산 초기화는 지원하지 않습니다.
-`demo_journey_seeds` marker가 각 fixture와 PassportSession을 연결하므로 같은 로컬 DB에서
-애플리케이션을 다시 시작해도 fixture를 계속 중복 생성하지 않습니다. READY 세션은
-그대로 재사용하고, 진행 중인 `STYLE_SPOT` 세션은 명시적인 복구를 위해 보존합니다.
-`COMPLETED` 세션만 다음 시작에서 새 READY fixture로 한 번 교체합니다.
-활성화된 경우에만 다음 형태로 session ID를 로그에 남기며 Response 내용이나 API key는
-기록하지 않습니다.
-
-```text
-Demo Journey fixture available: withoutProductTagSessionId=1, withProductTagSessionId=2
-```
+BE2 전용 Demo Journey production seed는 BE1 통합 후 제거되었습니다. PassportCard와
+Stark Backpack 기본 데이터는 BE1 `ReferenceDataInitializer`만 생성합니다.
 
 #### STEP A — 로컬 OpenAI usage benchmark
 
@@ -441,7 +418,6 @@ set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=0.10"
 set "MCM_OPENAI_REASONING_EFFORT=none"
 set "MCM_OPENAI_BENCHMARK_REPORT_DIR=build/reports/openai-benchmark"
 set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
-set "MCM_DEMO_SEED=false"
 call gradlew.bat openAiBenchmark
 ```
 
@@ -497,7 +473,6 @@ set "MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS=512"
 set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=1.00"
 set "MCM_OPENAI_REASONING_EFFORT=none"
 set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
-set "MCM_DEMO_SEED=false"
 call gradlew.bat openAiBenchmark
 ```
 
@@ -570,131 +545,32 @@ set "MCM_OPENAI_BENCHMARK_MAX_OUTPUT_TOKENS=512"
 set "MCM_OPENAI_BENCHMARK_MAX_ESTIMATED_USD=0.50"
 set "MCM_OPENAI_REASONING_EFFORT=low"
 set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
-set "MCM_DEMO_SEED=false"
 call gradlew.bat openAiBenchmark
 ```
 
-#### STEP B — BE1 없이 기존 REST API OpenAI smoke test
+#### STEP B — 통합 REST smoke test
 
-실제 OpenAI 호출은 자동 테스트 및 CI와 분리합니다. 먼저 API key를 로컬 secret manager,
-IDE의 비공개 Run Configuration 또는 현재 프로세스 환경에 `OPENAI_API_KEY`로 등록합니다.
-실제 값과 실제 key처럼 보이는 예시는 문서나 Git에 기록하지 않습니다. 이어서 다음
-환경변수를 설정합니다.
-
-```text
-MCM_STYLE_ANALYSIS_PROVIDER=openai
-OPENAI_API_KEY=(로컬 비공개 환경에서 설정)
-OPENAI_MODEL=(계정에서 사용할 수 있는 model ID)
-MCM_DEMO_SEED=true
-OPENAI_TIMEOUT=30s              # 선택 사항
-```
-
-MySQL 로컬 설정을 준비한 뒤 Windows CMD의 새 창에서 다음으로 시작합니다.
-`OPENAI_API_KEY`와 `OPENAI_MODEL`은 이미 저장된 사용자 환경변수를 읽으며 값을 다시 출력하지
-않습니다.
-
-```bat
-if defined OPENAI_API_KEY (echo OpenAI API key configured: yes) else (echo OpenAI API key configured: no)
-if defined OPENAI_MODEL (echo OpenAI model configured: yes) else (echo OpenAI model configured: no)
-
-set "MCM_STYLE_ANALYSIS_PROVIDER=openai"
-set "MCM_DEMO_SEED=true"
-set "MCM_OPENAI_REASONING_EFFORT=none"
-set "MCM_OPENAI_BENCHMARK=false"
-set "MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=false"
-call gradlew.bat bootRun
-```
-
-macOS/Linux에서는 같은 환경변수를 설정한 뒤 `./gradlew bootRun`을 사용합니다. 이후 다음 순서로
-ProductTag 없는 세션을 먼저 확인합니다. 아래 `<SESSION_ID>`는 시작 로그의
-`withoutProductTagSessionId` 숫자로 바꿉니다.
-
-같은 DB에서 이전 smoke가 중단됐다면 먼저 `style_spots`의 `GATE-S1` 상태를 확인합니다.
-`CONNECTED` 또는 `ANALYZING`이면 `POST /api/style-spots/GATE-S1/reset`을 호출한 뒤
-로그의 같은 session ID를 사용합니다. `RESULT`이면 기존 결과 조회와 Souvenir 생성을
-마쳐 세션을 `COMPLETED`로 만들고 Spot을 reset한 다음 애플리케이션을 재시작하면 새
-READY fixture가 준비됩니다. Demo initializer는 Journey fixture만 준비하며 공유 Display
-상태를 임의로 reset하지 않습니다. 기본 base URL은 `http://localhost:8080`이며 아래
-요청은 Postman, IntelliJ HTTP Client 또는 curl 같은 HTTP client에서 실행할 수 있습니다.
-
-1. Style Spot을 연결합니다.
-
-   ```http
-   POST /api/style-spots/GATE-S1/connections
-   Content-Type: application/json
-
-   {
-     "passportSessionId": <SESSION_ID>
-   }
-   ```
-
-2. 요청 본문 없이 실제 OpenAI 분석을 시작합니다.
-
-   ```http
-   POST /api/style-spots/GATE-S1/analysis
-   ```
-
-3. 분석 응답과 저장된 결과를 확인합니다.
-
-   ```http
-   GET /api/style-spots/GATE-S1/result
-   ```
-
-   다음 조건을 모두 확인합니다.
-
-   - 분석 HTTP 상태가 `200`
-   - `usedFallback=false`
-   - City Code, Recommended Product, Style Mood, Background, description이 존재
-   - `matchScore`가 0~100
-   - DB의 `passport_sessions.status`가 아직 `STYLE_SPOT`
-
-   실제 OpenAI Provider smoke의 성공 조건은 반드시 **`HTTP 200 AND
-   usedFallback=false`**입니다. `usedFallback=true`이면 **전체 BE2 fallback flow는
-   정상 작동했지만 OpenAI Provider smoke test는 실패**한 것으로 판정합니다.
-
-4. 요청 본문 없이 Souvenir를 생성하고 세션 완료를 확인합니다.
-
-   ```http
-   POST /api/passport-sessions/<SESSION_ID>/souvenir
-   ```
-
-   DB의 `passport_sessions.status`가 `COMPLETED`이고 `completed_at`이 채워졌는지
-   확인합니다.
-
-5. Style Spot을 reset합니다.
-
-   ```http
-   POST /api/style-spots/GATE-S1/reset
-   ```
-
-6. 로그의 `withProductTagSessionId`를 새 `<SESSION_ID>`로 사용해 1~5단계를 반복합니다.
-   두 번째 입력에는 `STARK_BACKPACK`이 optional ProductTag 분석 신호로 포함됩니다.
-
-상태 확인용 로컬 DB 조회 예시는 다음과 같습니다. ID는 demo 로그 값으로 바꿉니다.
-
-```sql
-SELECT id, status, completed_at
-FROM passport_sessions
-WHERE id = <SESSION_ID>;
-```
+BE1 API로 PassportSession과 Journey 데이터를 만들고 Boarding Pass 발급으로
+`READY_TO_BOARD`가 된 실제 session ID를 사용합니다. 이후
+`POST /api/style-spots/GATE-S1/connect` 한 번이 StyleSpotSession 생성과 분석을 함께
+수행합니다. 저장 결과는 Display와 session 기반 Style Result API에서 조회하고, Souvenir
+생성 후 `COMPLETED`를 확인합니다. 자동 테스트와 CI는 항상 mock provider를 사용합니다.
 
 #### GitHub Actions Backend CI
 
 개인 저장소의 `.github/workflows/backend-ci.yml`은 push, pull request, 수동 실행에서
 Ubuntu와 Java 21로 Gradle wrapper의 `clean build`를 실행합니다. CI는
-`MCM_STYLE_ANALYSIS_PROVIDER=mock`, `MCM_DEMO_SEED=false`,
+`MCM_STYLE_ANALYSIS_PROVIDER=mock`,
 `MCM_OPENAI_BENCHMARK=false`, `MCM_OPENAI_BENCHMARK_CONFIRM_LIVE=false`, 테스트용 H2를
 명시하며 `OPENAI_API_KEY`나 MySQL을 요구하지 않습니다. 따라서 CI에서는 실제 OpenAI
 호출이나 비용이 발생하지 않으며 배포, Docker build도 수행하지 않습니다.
 
-현재 `PassportSession`, `JourneyResponse`, `JourneyStamp`, `Product`, `ProductTag`,
-`JpaJourneyDataReader`는 BE2 프로토타입 실행을 위한 최소 공통 모델입니다. 실제 BE1
-구현과 병합할 때 BE1 Entity/Service로 교체하거나 매핑해야 하며, BE2 쪽 교체 지점은
-`JourneyDataReader`로 유지합니다. 이 프로토타입은 BE1의 Journey·Boarding 기능을 대신
-구현하지 않습니다.
+`JpaJourneyDataReader`가 BE1의 `GuideResponse`, `JourneyStamp`, `ProductTag`를
+`JourneyDataSnapshot`으로 변환합니다. Style 분석 계층은 BE1 repository를 직접 알지
+않으며 `JourneyDataReader` 경계를 유지합니다.
 
-이번 범위에는 실시간 이미지 생성, Style Portrait, 완성된 My Passport 화면/전용
-aggregate, MCM 온라인 계정 연동, NFC/QR 하드웨어 판독을 포함하지 않습니다.
+이번 범위에는 실시간 이미지 생성, 외부 object storage, MCM 온라인 계정 연동,
+NFC/QR 하드웨어 판독을 포함하지 않습니다. Portrait는 URL metadata만 저장합니다.
 
 
 ## Commit Convention
