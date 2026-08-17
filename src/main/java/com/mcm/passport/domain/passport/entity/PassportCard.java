@@ -67,6 +67,10 @@ public class PassportCard {
 		return active;
 	}
 
+	public void deactivate() {
+		this.active = false;
+	}
+
 	public Instant getCreatedAt() {
 		return createdAt;
 	}
