@@ -51,7 +51,7 @@ class OpenAIStyleAnalysisProviderTest {
 		assertThat(candidate.cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD.name());
 		assertThat(candidate.recommendedProduct()).isEqualTo(RecommendedProduct.STARK_BACKPACK.name());
 		assertThat(candidate.styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT.name());
-		assertThat(candidate.background()).isEqualTo(CityBackground.BERLIN_AFTERDARK.name());
+		assertThat(candidate.background()).isEqualTo(CityBackground.BERLIN_AFTER_DARK.name());
 		assertThat(candidate.description()).isEqualTo("오늘 Journey를 위한 오프라인 테스트 결과입니다.");
 		assertThat(candidate.matchScore()).isEqualTo(91);
 		assertThat(gateway.capturedPrompt()).isNotNull();
@@ -105,7 +105,7 @@ class OpenAIStyleAnalysisProviderTest {
 				"UNLISTED_CITY",
 				RecommendedProduct.STARK_BACKPACK.name(),
 				StyleMood.AFTERDARK_MOVEMENT.name(),
-				CityBackground.BERLIN_AFTERDARK.name(),
+				CityBackground.BERLIN_AFTER_DARK.name(),
 				"Validator가 거부해야 하는 테스트 출력입니다.",
 				91
 		);
@@ -122,7 +122,7 @@ class OpenAIStyleAnalysisProviderTest {
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				RecommendedProduct.STARK_BACKPACK.name(),
 				StyleMood.AFTERDARK_MOVEMENT.name(),
-				CityBackground.SEOUL_NEON_PULSE.name(),
+				CityBackground.SEOUL_PULSE.name(),
 				"Validator가 거부해야 하는 테스트 출력입니다.",
 				91
 		);
@@ -184,7 +184,7 @@ class OpenAIStyleAnalysisProviderTest {
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				RecommendedProduct.STARK_BACKPACK.name(),
 				StyleMood.AFTERDARK_MOVEMENT.name(),
-				CityBackground.BERLIN_AFTERDARK.name(),
+				CityBackground.BERLIN_AFTER_DARK.name(),
 				"오늘 Journey를 위한 오프라인 테스트 결과입니다.",
 				91
 		);
@@ -194,7 +194,7 @@ class OpenAIStyleAnalysisProviderTest {
 		assertThat(decision.usedFallback()).isTrue();
 		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD);
 		assertThat(decision.analysis().recommendedProduct()).isEqualTo(RecommendedProduct.STARK_BACKPACK);
-		assertThat(decision.analysis().background()).isEqualTo(CityBackground.BERLIN_AFTERDARK);
+		assertThat(decision.analysis().background()).isEqualTo(CityBackground.BERLIN_AFTER_DARK);
 	}
 
 	private static final class FakeGateway implements OpenAIStyleAnalysisGateway {

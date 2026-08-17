@@ -103,7 +103,8 @@ class StyleApiIntegrationTest {
 				.andExpect(jsonPath("$.passportSessionId").value(passportSession.getId()))
 				.andExpect(jsonPath("$.cityCode").value("BERLIN_AFTERDARK_NOMAD"))
 				.andExpect(jsonPath("$.recommendedProductCode").value(RecommendedProduct.STARK_BACKPACK.name()))
-				.andExpect(jsonPath("$.backgroundCode").value("BERLIN_AFTERDARK"))
+				.andExpect(jsonPath("$.backgroundCode").value("BERLIN_AFTER_DARK"))
+				.andExpect(jsonPath("$.backgroundName").value("Berlin After Dark"))
 				.andExpect(jsonPath("$.matchScore").value(92))
 				.andExpect(jsonPath("$.usedFallback").value(false));
 
@@ -126,7 +127,7 @@ class StyleApiIntegrationTest {
 		mockMvc.perform(get("/api/passport-sessions/{passportSessionId}/souvenir", passportSession.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.cityCode").value("BERLIN_AFTERDARK_NOMAD"))
-				.andExpect(jsonPath("$.backgroundAssetKey").value("berlin-afterdark"));
+				.andExpect(jsonPath("$.backgroundAssetKey").value("berlin-after-dark"));
 
 		mockMvc.perform(post("/api/style-spots/{spotCode}/reset", STYLE_SPOT_CODE))
 				.andExpect(status().isOk())

@@ -118,7 +118,7 @@ class StyleFlowIntegrationTest {
 		assertThat(analyzed.cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD.name());
 		assertThat(analyzed.recommendedProductCode()).isEqualTo(RecommendedProduct.STARK_BACKPACK.name());
 		assertThat(analyzed.styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT.name());
-		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTERDARK.name());
+		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTER_DARK.name());
 		assertThat(analyzed.matchScore()).isEqualTo(92);
 		assertThat(analyzed.usedFallback()).isFalse();
 		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
@@ -320,7 +320,7 @@ class StyleFlowIntegrationTest {
 						CityCode.BERLIN_AFTERDARK_NOMAD,
 						RecommendedProduct.STARK_BACKPACK,
 						StyleMood.AFTERDARK_MOVEMENT,
-						CityBackground.BERLIN_AFTERDARK,
+						CityBackground.BERLIN_AFTER_DARK,
 						"A valid result for analysis attempt regression testing.",
 						92
 				),

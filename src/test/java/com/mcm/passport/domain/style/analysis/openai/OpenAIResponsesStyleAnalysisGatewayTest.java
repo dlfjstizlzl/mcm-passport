@@ -397,7 +397,7 @@ class OpenAIResponsesStyleAnalysisGatewayTest {
 		OpenAIStyleAnalysisGatewayResult result = gateway().analyze(PROMPT, REQUEST);
 
 		assertThat(result.model()).isEqualTo(model.asString());
-		assertThat(result.output().background()).isEqualTo("BERLIN_AFTERDARK");
+		assertThat(result.output().background()).isEqualTo("BERLIN_AFTER_DARK");
 		assertThat(result.usage()).isEqualTo(EXPECTED_USAGE);
 	}
 
@@ -465,7 +465,7 @@ class OpenAIResponsesStyleAnalysisGatewayTest {
 				  "cityCode": "BERLIN_AFTERDARK_NOMAD",
 				  "recommendedProduct": "STARK_BACKPACK",
 				  "styleMood": "AFTERDARK_MOVEMENT",
-				  "background": "BERLIN_AFTERDARK",
+				  "background": "BERLIN_AFTER_DARK",
 				  "description": "Offline structured output fixture.",
 				  "matchScore": 91
 				}

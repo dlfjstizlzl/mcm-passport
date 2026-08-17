@@ -45,10 +45,10 @@ public class MockStyleAnalysisProvider implements StyleAnalysisProvider {
 
 	private CityCode selectProfile(String signals) {
 		if (signals.contains("ELEGANT") || signals.contains("CLASSIC") || signals.contains("DIAMANT")) {
-			return CityCode.PARIS_MODERN_VOYAGER;
+			return CityCode.TOKYO_QUIET_MINIMALIST;
 		}
 		if (signals.contains("CREATIVE") || signals.contains("TREND") || signals.contains("AREN")) {
-			return CityCode.SEOUL_CREATIVE_MOVER;
+			return CityCode.SEOUL_NEON_PLAYER;
 		}
 		return CityCode.BERLIN_AFTERDARK_NOMAD;
 	}

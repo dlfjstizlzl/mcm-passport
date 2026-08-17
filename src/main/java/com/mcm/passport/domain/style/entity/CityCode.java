@@ -5,8 +5,12 @@ import com.mcm.passport.domain.style.catalog.PrototypeStyleCatalog;
 /** Prototype curated code persisted as a string in Style Result and Souvenir records. */
 public enum CityCode {
 	BERLIN_AFTERDARK_NOMAD,
-	SEOUL_CREATIVE_MOVER,
-	PARIS_MODERN_VOYAGER;
+	TOKYO_QUIET_MINIMALIST,
+	SEOUL_NEON_PLAYER,
+	MUNICH_HERITAGE_TRAVELER,
+	NEWYORK_GRAPHIC_MOVER,
+	HONG_KONG_NEON_NAVIGATOR,
+	SHANGHAI_FUTURE_VOYAGER;
 
 	public String getDisplayName() {
 		return PrototypeStyleCatalog.cityProfile(this).displayName();

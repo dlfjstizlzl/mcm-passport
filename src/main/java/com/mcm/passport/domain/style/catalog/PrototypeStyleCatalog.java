@@ -8,38 +8,65 @@ import com.mcm.passport.domain.style.entity.StyleMood;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Prototype-only curated values and relationships used by the MVP.
- *
- * <p>Production catalog integration should replace this boundary while keeping the analysis
- * provider and persisted result contract stable.</p>
- */
+/** Curated MVP values and relationships used by style analysis and display. */
 public final class PrototypeStyleCatalog {
 
 	private static final Map<CityCode, CityProfile> CITY_PROFILES = Map.of(
 			CityCode.BERLIN_AFTERDARK_NOMAD,
-			new CityProfile(
+			profile(
 					"Berlin Afterdark Nomad",
 					RecommendedProduct.STARK_BACKPACK,
 					StyleMood.AFTERDARK_MOVEMENT,
-					CityBackground.BERLIN_AFTERDARK,
+					CityBackground.BERLIN_AFTER_DARK,
 					"오늘의 반응은 밤의 베를린처럼 자유로운 움직임과 선명한 존재감이 어우러지는 장면을 제안합니다."
 			),
-			CityCode.SEOUL_CREATIVE_MOVER,
-			new CityProfile(
-					"Seoul Creative Mover",
-					RecommendedProduct.AREN_CROSSBODY,
-					StyleMood.CREATIVE_PULSE,
-					CityBackground.SEOUL_NEON_PULSE,
-					"오늘의 반응은 빠르게 변하는 서울의 리듬처럼 실용성과 창의적인 포인트가 만나는 장면을 제안합니다."
-			),
-			CityCode.PARIS_MODERN_VOYAGER,
-			new CityProfile(
-					"Paris Modern Voyager",
+			CityCode.TOKYO_QUIET_MINIMALIST,
+			profile(
+					"Tokyo Quiet Minimalist",
 					RecommendedProduct.DIAMANT_3D_SHOULDER_BAG,
 					StyleMood.MODERN_ELEGANCE,
-					CityBackground.PARIS_MODERN_CLASSIC,
-					"오늘의 반응은 파리의 정제된 균형처럼 모던한 선과 우아한 디테일이 이어지는 장면을 제안합니다."
+					CityBackground.TOKYO_QUIET_LINE,
+					"오늘의 반응은 도쿄의 고요한 선처럼 정제된 구조와 가벼운 미니멀 감각이 이어지는 장면을 제안합니다."
+			),
+			CityCode.SEOUL_NEON_PLAYER,
+			profile(
+					"Seoul Neon Player",
+					RecommendedProduct.AREN_CROSSBODY,
+					StyleMood.CREATIVE_PULSE,
+					CityBackground.SEOUL_PULSE,
+					"오늘의 반응은 빠르게 변하는 서울의 리듬처럼 실용성과 감각적인 포인트가 만나는 장면을 제안합니다."
+			),
+			CityCode.MUNICH_HERITAGE_TRAVELER,
+			profile(
+					"Munich Heritage Traveler",
+					RecommendedProduct.DIAMANT_3D_SHOULDER_BAG,
+					StyleMood.MODERN_ELEGANCE,
+					CityBackground.MUNICH_HERITAGE,
+					"오늘의 반응은 뮌헨의 깊이 있는 헤리티지처럼 클래식한 질감과 오래 가는 스타일을 제안합니다."
+			),
+			CityCode.NEWYORK_GRAPHIC_MOVER,
+			profile(
+					"New York Graphic Mover",
+					RecommendedProduct.STARK_BACKPACK,
+					StyleMood.CREATIVE_PULSE,
+					CityBackground.NEW_YORK_GRAPHIC_CITY,
+					"오늘의 반응은 뉴욕의 선명한 그래픽처럼 대담한 이미지와 빠른 도시 이동이 만나는 장면을 제안합니다."
+			),
+			CityCode.HONG_KONG_NEON_NAVIGATOR,
+			profile(
+					"Hong Kong Neon Navigator",
+					RecommendedProduct.AREN_CROSSBODY,
+					StyleMood.CREATIVE_PULSE,
+					CityBackground.HONG_KONG_NEON_HARBOR,
+					"오늘의 반응은 홍콩의 겹쳐지는 네온과 밀도 높은 야경처럼 빠른 이동과 선명한 에너지가 만나는 장면을 제안합니다."
+			),
+			CityCode.SHANGHAI_FUTURE_VOYAGER,
+			profile(
+					"Shanghai Future Voyager",
+					RecommendedProduct.DIAMANT_3D_SHOULDER_BAG,
+					StyleMood.MODERN_ELEGANCE,
+					CityBackground.SHANGHAI_FUTURE_SKYLINE,
+					"오늘의 반응은 상하이의 미래적인 스카이라인처럼 세련된 구조감과 현대적인 에너지가 이어지는 장면을 제안합니다."
 			)
 	);
 
@@ -55,10 +82,21 @@ public final class PrototypeStyleCatalog {
 			StyleMood.MODERN_ELEGANCE, "Modern / Elegance"
 	);
 
-	private static final Map<CityBackground, String> BACKGROUND_ASSET_KEYS = Map.of(
-			CityBackground.BERLIN_AFTERDARK, "berlin-afterdark",
-			CityBackground.SEOUL_NEON_PULSE, "seoul-neon-pulse",
-			CityBackground.PARIS_MODERN_CLASSIC, "paris-modern-classic"
+	private static final Map<CityBackground, BackgroundProfile> BACKGROUND_PROFILES = Map.of(
+			CityBackground.BERLIN_AFTER_DARK,
+			new BackgroundProfile("Berlin After Dark", "berlin-after-dark"),
+			CityBackground.TOKYO_QUIET_LINE,
+			new BackgroundProfile("Tokyo Quiet Line", "tokyo-quiet-line"),
+			CityBackground.SEOUL_PULSE,
+			new BackgroundProfile("Seoul Pulse", "seoul-pulse"),
+			CityBackground.MUNICH_HERITAGE,
+			new BackgroundProfile("Munich Heritage", "munich-heritage"),
+			CityBackground.NEW_YORK_GRAPHIC_CITY,
+			new BackgroundProfile("New York Graphic City", "new-york-graphic-city"),
+			CityBackground.HONG_KONG_NEON_HARBOR,
+			new BackgroundProfile("Hong Kong Neon Harbor", "hong-kong-neon-harbor"),
+			CityBackground.SHANGHAI_FUTURE_SKYLINE,
+			new BackgroundProfile("Shanghai Future Skyline", "shanghai-future-skyline")
 	);
 
 	private PrototypeStyleCatalog() {
@@ -76,8 +114,22 @@ public final class PrototypeStyleCatalog {
 		return requireCurated(MOOD_DISPLAY_NAMES, mood, "style mood");
 	}
 
+	public static String backgroundDisplayName(CityBackground background) {
+		return requireCurated(BACKGROUND_PROFILES, background, "city background").displayName();
+	}
+
 	public static String backgroundAssetKey(CityBackground background) {
-		return requireCurated(BACKGROUND_ASSET_KEYS, background, "city background");
+		return requireCurated(BACKGROUND_PROFILES, background, "city background").assetKey();
+	}
+
+	private static CityProfile profile(
+			String displayName,
+			RecommendedProduct product,
+			StyleMood mood,
+			CityBackground background,
+			String description
+	) {
+		return new CityProfile(displayName, product, mood, background, description);
 	}
 
 	private static <K, V> V requireCurated(Map<K, V> catalog, K key, String valueName) {
@@ -96,5 +148,8 @@ public final class PrototypeStyleCatalog {
 			CityBackground background,
 			String defaultDescription
 	) {
+	}
+
+	public record BackgroundProfile(String displayName, String assetKey) {
 	}
 }

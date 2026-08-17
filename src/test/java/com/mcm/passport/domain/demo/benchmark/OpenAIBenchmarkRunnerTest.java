@@ -334,7 +334,7 @@ class OpenAIBenchmarkRunnerTest {
 								"INVALID_CITY",
 								RecommendedProduct.STARK_BACKPACK.name(),
 								StyleMood.AFTERDARK_MOVEMENT.name(),
-								CityBackground.BERLIN_AFTERDARK.name(),
+								CityBackground.BERLIN_AFTER_DARK.name(),
 								"Offline invalid result",
 								91
 						),
@@ -534,7 +534,7 @@ class OpenAIBenchmarkRunnerTest {
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				RecommendedProduct.STARK_BACKPACK.name(),
 				StyleMood.AFTERDARK_MOVEMENT.name(),
-				CityBackground.BERLIN_AFTERDARK.name(),
+				CityBackground.BERLIN_AFTER_DARK.name(),
 				"Offline benchmark result",
 				91
 		);
