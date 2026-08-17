@@ -226,6 +226,13 @@ paths:
     post:
       tags: [Style Spot]
       summary: Passport와 Style Spot 연결
+      description: |
+        READY_TO_BOARD 상태의 Passport Session을 Style Spot에 연결하고, Journey 데이터를 분석하여
+        Style Result 생성까지 한 번에 완료합니다. FE가 별도의 Analysis API를 호출할 필요는 없습니다.
+
+        같은 Passport Session이 이미 이 Spot의 활성 연결을 소유하면 기존 StyleSpotSession을 재사용합니다.
+        분석 실패 후 Spot이 CONNECTED로 복구된 경우 같은 요청으로 분석을 재시도할 수 있으며,
+        성공 후 재호출하면 기존 결과를 200으로 반환합니다. 다른 Passport Session이 사용 중이면 409입니다.
       operationId: connectStyleSpot
       requestBody:
         required: true
@@ -234,8 +241,8 @@ paths:
             schema:
               $ref: '#/components/schemas/StyleSpotConnectRequest'
       responses:
-        '201':
-          description: 연결 성공
+        '200':
+          description: 연결, 분석 및 Style Result 생성 성공
           content:
             application/json:
               schema:
@@ -243,12 +250,19 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/style-spot-sessions/{styleSpotSessionId}/disconnect:
     parameters:
       - $ref: '#/components/parameters/StyleSpotSessionId'
     post:
       tags: [Style Spot]
       summary: Style Spot 연결 해제
+      description: |
+        활성 연결을 해제하고 Style Spot을 RESET 상태로 전환합니다. 이미 해제된 Session을 다시 요청하면
+        기존 DISCONNECTED 응답을 200으로 반환합니다. Result 생성 전에는 STYLE_SPOT 상태의 Passport Session이
+        READY_TO_BOARD로 복구될 수 있지만, Result 생성 후에는 STYLE_SPOT을 유지하고 Souvenir 생성 후에는
+        COMPLETED를 유지합니다.
       operationId: disconnectStyleSpot
       responses:
         '200':
@@ -256,15 +270,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StyleSpotDisconnectResponse'
+                $ref: '#/components/schemas/StyleSpotSessionResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/style-spots/{styleSpotId}/display:
     parameters:
       - $ref: '#/components/parameters/StyleSpotId'
     get:
       tags: [Style Spot]
       summary: Display 상태 및 결과 조회
+      description: |
+        현재 Style Spot의 상태와 활성 Session 및 결과를 단일한 flat 응답으로 반환합니다.
+        WAITING/RESET에서는 activeStyleSpotSessionId와 styleResult가 null이고,
+        CONNECTED/ANALYZING에서는 activeStyleSpotSessionId만 존재하며,
+        RESULT에서는 두 값이 모두 존재합니다.
       operationId: getStyleSpotDisplay
       responses:
         '200':
@@ -274,6 +295,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/StyleSpotDisplayResponse'
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/passport-sessions/{passportSessionId}/style-result:
     parameters:
       - $ref: '#/components/parameters/PassportSessionId'
@@ -288,7 +310,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StyleResultResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/passport-sessions/{passportSessionId}/portrait:
     parameters:
       - $ref: '#/components/parameters/PassportSessionId'
@@ -312,6 +336,8 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
     get:
       tags: [Style Portrait]
       summary: Style Portrait 조회
@@ -323,7 +349,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StylePortraitResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
     delete:
       tags: [Style Portrait]
       summary: Style Portrait 삭제
@@ -331,23 +359,37 @@ paths:
       responses:
         '204':
           description: 삭제 성공
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/passport-sessions/{passportSessionId}/souvenir:
     parameters:
       - $ref: '#/components/parameters/PassportSessionId'
     post:
       tags: [Journey Souvenir]
       summary: Journey Souvenir 생성
+      description: |
+        Style Result를 기반으로 Journey Souvenir를 생성하고, 최초 생성 시 같은 transaction에서
+        Passport Session을 COMPLETED로 전환합니다. Portrait은 선택 기능이며 선행 조건이 아닙니다.
+        이미 생성된 Souvenir가 있으면 새로 만들지 않고 기존 리소스를 200으로 반환합니다.
       operationId: createJourneySouvenir
       responses:
         '201':
-          description: 생성 성공
+          description: 최초 생성 성공 및 Passport Session COMPLETED 전환
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JourneySouvenirCreateResponse'
+                $ref: '#/components/schemas/JourneySouvenirResponse'
+        '200':
+          description: 이미 생성된 Journey Souvenir 반환
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneySouvenirResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
     get:
       tags: [Journey Souvenir]
       summary: Journey Souvenir 조회
@@ -359,13 +401,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JourneySouvenirResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /api/passport-sessions/{passportSessionId}/my-passport:
     parameters:
       - $ref: '#/components/parameters/PassportSessionId'
     get:
       tags: [My Passport]
-      summary: 최종 My Passport 조회
+      summary: My Passport aggregate 조회
+      description: |
+        Passport Session이 존재하면 COMPLETED 이전에도 현재까지 축적된 Journey, Style Result,
+        선택적 Portrait 및 Souvenir를 partial aggregate로 반환합니다.
       operationId: getMyPassport
       responses:
         '200':
@@ -374,8 +421,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MyPassportResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
 components:
   parameters:
     PassportSessionId:
@@ -402,7 +450,10 @@ components:
       name: styleSpotId
       in: path
       required: true
-      schema: {type: integer, format: int64}
+      description: Style Spot의 숫자 PK가 아닌 대소문자를 구분하지 않는 코드입니다.
+      schema:
+        type: string
+        example: GATE-S1
     StyleSpotSessionId:
       name: styleSpotSessionId
       in: path
@@ -410,7 +461,7 @@ components:
       schema: {type: integer, format: int64}
   responses:
     BadRequest:
-      description: 잘못된 요청
+      description: 입력 validation 실패(INVALID_INPUT) 또는 JSON 본문 해석 실패(MALFORMED_JSON)
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
@@ -421,6 +472,16 @@ components:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     Conflict:
       description: 현재 상태에서 요청을 처리할 수 없음
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    UnsupportedMediaType:
+      description: 지원하지 않는 요청 Content-Type(UNSUPPORTED_MEDIA_TYPE)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    InternalServerError:
+      description: 서버 내부 오류(INTERNAL_SERVER_ERROR)
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
@@ -587,175 +648,249 @@ components:
       type: object
       required: [passportSessionId]
       properties:
-        passportSessionId: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64, example: 17}
     StyleSpotConnectResponse:
       type: object
-      required: [styleSpotSessionId, styleSpotId, passportSessionId, status, connectedAt]
+      description: Connect 한 번으로 연결과 분석이 완료된 결과입니다.
+      required: [styleSpotSessionId, styleSpotId, passportSessionId, status, styleResult]
       properties:
         styleSpotSessionId: {type: integer, format: int64}
-        styleSpotId: {type: integer, format: int64}
+        styleSpotId: {type: string, example: GATE-S1}
         passportSessionId: {type: integer, format: int64}
-        status: {type: string, enum: [STYLE_SPOT]}
-        connectedAt: {type: string, format: date-time}
-    StyleSpotDisconnectResponse:
+        status:
+          type: string
+          enum: [RESULT]
+          description: 정상 응답에서는 분석과 결과 저장이 완료되었으므로 항상 RESULT입니다.
+        styleResult: {$ref: '#/components/schemas/StyleResultResponse'}
+    StyleSpotSessionResponse:
       type: object
-      required: [styleSpotSessionId, disconnectedAt]
-      properties:
-        styleSpotSessionId: {type: integer, format: int64}
-        disconnectedAt: {type: string, format: date-time}
-    StyleSpotDisplayResponse:
-      oneOf:
-        - $ref: '#/components/schemas/DisplayWaitingResponse'
-        - $ref: '#/components/schemas/DisplayProgressResponse'
-        - $ref: '#/components/schemas/DisplayResultResponse'
-      discriminator:
-        propertyName: displayStatus
-    DisplayWaitingResponse:
-      type: object
-      required: [displayStatus]
-      properties:
-        displayStatus: {type: string, enum: [WAITING]}
-    DisplayProgressResponse:
-      type: object
-      required: [displayStatus, passportSessionId]
-      properties:
-        displayStatus: {type: string, enum: [CONNECTED, ANALYZING]}
-        passportSessionId: {type: integer, format: int64}
-    DisplayResultResponse:
-      type: object
-      required: [displayStatus, passportSessionId, cityCode, styleDestination, styleMoods, recommendedProduct, background, resultMessage]
-      properties:
-        displayStatus: {type: string, enum: [RESULT]}
-        passportSessionId: {type: integer, format: int64}
-        cityCode: {type: string, example: BERLIN_AFTERDARK_NOMAD}
-        styleDestination: {type: string, example: Berlin After Dark}
-        styleMoods:
-          type: array
-          items: {type: string}
-        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
-        background: {$ref: '#/components/schemas/BackgroundSummary'}
-        resultMessage: {type: string}
-    StyleResultResponse:
-      type: object
-      required: [styleResultId, cityCode, styleDestination, styleMoods, resultMessage, recommendedProduct, background, resultSource, createdAt]
-      properties:
-        styleResultId: {type: integer, format: int64}
-        cityCode: {type: string}
-        styleDestination: {type: string}
-        styleMoods:
-          type: array
-          items: {type: string}
-        resultMessage: {type: string}
-        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
-        background: {$ref: '#/components/schemas/BackgroundDetail'}
-        resultSource: {type: string, enum: [AI, FALLBACK]}
-        createdAt: {type: string, format: date-time}
-    ProductSummary:
-      type: object
-      required: [id, name]
+      description: 연결 해제 후의 StyleSpotSession snapshot입니다.
+      required: [id, styleSpotId, passportSessionId, status, connectedAt, disconnectedAt]
       properties:
         id: {type: integer, format: int64}
-        name: {type: string}
-        imageUrl: {type: [string, 'null'], format: uri}
-    BackgroundSummary:
+        styleSpotId: {type: string, example: GATE-S1}
+        passportSessionId: {type: integer, format: int64}
+        status: {type: string, enum: [DISCONNECTED]}
+        connectedAt: {type: string, format: date-time}
+        disconnectedAt: {type: string, format: date-time}
+    StyleSpotDisplayResponse:
       type: object
-      required: [mediaUrl, mediaType]
+      description: |
+        모든 Display 상태에서 같은 JSON 구조를 사용합니다.
+        WAITING/RESET: activeStyleSpotSessionId=null, styleResult=null
+        CONNECTED/ANALYZING: activeStyleSpotSessionId!=null, styleResult=null
+        RESULT: activeStyleSpotSessionId!=null, styleResult!=null
+      required: [styleSpotId, activeStyleSpotSessionId, status, styleResult]
       properties:
-        mediaUrl: {type: string, format: uri}
-        mediaType: {type: string, enum: [IMAGE, VIDEO]}
-    BackgroundDetail:
-      allOf:
-        - $ref: '#/components/schemas/BackgroundSummary'
-        - type: object
-          required: [id]
-          properties:
-            id: {type: integer, format: int64}
+        styleSpotId: {type: string, example: GATE-S1}
+        activeStyleSpotSessionId:
+          type: [integer, 'null']
+          format: int64
+        status: {$ref: '#/components/schemas/StyleSpotStatus'}
+        styleResult:
+          oneOf:
+            - $ref: '#/components/schemas/StyleResultResponse'
+            - type: 'null'
+    StyleSpotStatus:
+      type: string
+      enum: [WAITING, CONNECTED, ANALYZING, RESULT, RESET]
+    StyleResultResponse:
+      type: object
+      required:
+        - id
+        - passportSessionId
+        - cityCode
+        - cityCodeName
+        - recommendedProductCode
+        - recommendedProductName
+        - styleMood
+        - styleMoodName
+        - backgroundCode
+        - backgroundName
+        - backgroundAssetKey
+        - description
+        - matchScore
+        - usedFallback
+        - createdAt
+      properties:
+        id: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64}
+        cityCode: {$ref: '#/components/schemas/CityCode'}
+        cityCodeName: {type: string, example: Berlin Afterdark Nomad}
+        recommendedProductCode: {$ref: '#/components/schemas/RecommendedProductCode'}
+        recommendedProductName: {type: string, example: Stark Backpack}
+        styleMood: {$ref: '#/components/schemas/StyleMoodCode'}
+        styleMoodName: {type: string}
+        backgroundCode: {$ref: '#/components/schemas/CityBackgroundCode'}
+        backgroundName: {type: string}
+        backgroundAssetKey: {type: string}
+        description: {type: string, minLength: 1, maxLength: 1000}
+        matchScore: {type: integer, minimum: 0, maximum: 100}
+        usedFallback:
+          type: boolean
+          description: true여도 API 실패가 아니며 Rule-based fallback으로 결과 생성을 정상 완료했다는 뜻입니다.
+        createdAt: {type: string, format: date-time}
+    CityCode:
+      type: string
+      enum:
+        - BERLIN_AFTERDARK_NOMAD
+        - TOKYO_QUIET_MINIMALIST
+        - SEOUL_NEON_PLAYER
+        - MUNICH_HERITAGE_TRAVELER
+        - NEWYORK_GRAPHIC_MOVER
+        - HONG_KONG_NEON_NAVIGATOR
+        - SHANGHAI_FUTURE_VOYAGER
+    RecommendedProductCode:
+      type: string
+      enum: [STARK_BACKPACK, AREN_CROSSBODY, DIAMANT_3D_SHOULDER_BAG]
+    StyleMoodCode:
+      type: string
+      enum: [AFTERDARK_MOVEMENT, CREATIVE_PULSE, MODERN_ELEGANCE]
+    CityBackgroundCode:
+      type: string
+      enum:
+        - BERLIN_AFTER_DARK
+        - TOKYO_QUIET_LINE
+        - SEOUL_PULSE
+        - MUNICH_HERITAGE
+        - NEW_YORK_GRAPHIC_CITY
+        - HONG_KONG_NEON_HARBOR
+        - SHANGHAI_FUTURE_SKYLINE
     StylePortraitRequest:
       type: object
-      required: [imageUrl]
+      required: [imageUrl, consent]
       properties:
-        imageUrl: {type: string, format: uri}
+        imageUrl:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '.*\S.*'
+          description: 비어 있지 않은 storage/CDN reference입니다. 절대 URI 형식으로 제한하지 않습니다.
+        consent:
+          type: boolean
+          const: true
+          description: Portrait 저장에 대한 명시적 동의이며 true만 허용합니다.
     StylePortraitResponse:
       type: object
-      required: [stylePortraitId, imageUrl, createdAt]
+      required: [id, passportSessionId, imageUrl, consent, createdAt]
       properties:
-        stylePortraitId: {type: integer, format: int64}
-        imageUrl: {type: string, format: uri}
-        createdAt: {type: string, format: date-time}
-        expiresAt: {type: [string, 'null'], format: date-time}
-    JourneySouvenirCreateResponse:
-      type: object
-      required: [journeySouvenirId, passportSessionId, privateBenefit, generatedAt]
-      properties:
-        journeySouvenirId: {type: integer, format: int64}
+        id: {type: integer, format: int64}
         passportSessionId: {type: integer, format: int64}
-        privateBenefit: {type: string}
-        generatedAt: {type: string, format: date-time}
+        imageUrl: {type: string, minLength: 1, maxLength: 1000, pattern: '.*\S.*'}
+        consent: {type: boolean}
+        createdAt: {type: string, format: date-time}
     JourneySouvenirResponse:
       type: object
-      required: [journeySouvenirId, cityCode, styleDestination, styleMoods, recommendedProduct, journeyStamps, taggedProducts, privateBenefit, generatedAt]
+      required:
+        - id
+        - passportSessionId
+        - styleResultId
+        - cityCode
+        - cityCodeName
+        - recommendedProductCode
+        - recommendedProductName
+        - styleMood
+        - styleMoodName
+        - backgroundCode
+        - backgroundName
+        - backgroundAssetKey
+        - journeyStamps
+        - taggedProductCodes
+        - createdAt
       properties:
-        journeySouvenirId: {type: integer, format: int64}
-        cityCode: {type: string}
-        styleDestination: {type: string}
-        styleMoods:
-          type: array
-          items: {type: string}
-        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
+        id: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64}
+        styleResultId: {type: integer, format: int64}
+        cityCode: {$ref: '#/components/schemas/CityCode'}
+        cityCodeName: {type: string}
+        recommendedProductCode: {$ref: '#/components/schemas/RecommendedProductCode'}
+        recommendedProductName: {type: string}
+        styleMood: {$ref: '#/components/schemas/StyleMoodCode'}
+        styleMoodName: {type: string}
+        backgroundCode: {$ref: '#/components/schemas/CityBackgroundCode'}
+        backgroundName: {type: string}
+        backgroundAssetKey: {type: string}
         journeyStamps:
           type: array
-          items: {$ref: '#/components/schemas/JourneyStampSummary'}
+          description: Journey Stamp의 Spot code 목록이며 항상 배열로 반환합니다.
+          items: {type: string}
+        taggedProductCodes:
+          type: array
+          description: 태그한 Product가 없으면 빈 배열을 반환합니다.
+          items: {type: string}
+        createdAt: {type: string, format: date-time}
+    JourneyDataSnapshot:
+      type: object
+      required: [sessionId, responses, stamps, taggedProducts]
+      properties:
+        sessionId: {type: integer, format: int64}
+        responses:
+          type: array
+          items: {$ref: '#/components/schemas/JourneyResponseSignal'}
+        stamps:
+          type: array
+          items: {$ref: '#/components/schemas/JourneyStampSignal'}
         taggedProducts:
           type: array
-          items: {$ref: '#/components/schemas/ProductSummary'}
-        portrait:
-          oneOf:
-            - $ref: '#/components/schemas/PortraitSummary'
-            - type: 'null'
-        privateBenefit: {type: string}
-        generatedAt: {type: string, format: date-time}
-    JourneyStampSummary:
+          items: {$ref: '#/components/schemas/JourneyProductSignal'}
+    JourneyResponseSignal:
       type: object
-      required: [spotCode, spotName]
-      properties:
-        spotCode: {type: string}
-        spotName: {type: string}
-        stampedAt: {type: string, format: date-time}
-    PortraitSummary:
-      type: object
-      required: [imageUrl]
-      properties:
-        imageUrl: {type: string, format: uri}
-    GuideResponseSummary:
-      type: object
-      required: [spotCode, questionCode, questionText, optionCode, optionLabel]
+      required: [spotCode, questionCode, answerCode, answerText]
       properties:
         spotCode: {type: string}
         questionCode: {type: string}
-        questionText: {type: string}
-        optionCode: {type: string}
-        optionLabel: {type: string}
+        answerCode: {type: string}
+        answerText: {type: string}
+    JourneyStampSignal:
+      type: object
+      required: [spotCode]
+      properties:
+        spotCode: {type: string}
+    JourneyProductSignal:
+      type: object
+      required: [productId, code, name]
+      properties:
+        productId: {type: integer, format: int64}
+        code: {type: string}
+        name: {type: string}
     MyPassportResponse:
       type: object
-      required: [passportSessionId, status, journeyStamps, taggedProducts, styleResult, guideResponses]
+      description: COMPLETED 이전에도 조회 가능한 현재 Passport Session의 aggregate입니다.
+      required:
+        - passportSessionId
+        - cardUid
+        - status
+        - startedAt
+        - completedAt
+        - journey
+        - styleResult
+        - portrait
+        - souvenir
       properties:
         passportSessionId: {type: integer, format: int64}
-        status: {type: string, enum: [COMPLETED]}
-        journeyStamps:
-          type: array
-          items: {$ref: '#/components/schemas/JourneyStampSummary'}
-        taggedProducts:
-          type: array
-          items: {$ref: '#/components/schemas/ProductSummary'}
-        styleResult: {$ref: '#/components/schemas/StyleResultResponse'}
-        portrait:
+        cardUid: {type: string}
+        status: {$ref: '#/components/schemas/PassportSessionStatus'}
+        startedAt: {type: string, format: date-time}
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+          description: COMPLETED 이전에는 null입니다.
+        journey: {$ref: '#/components/schemas/JourneyDataSnapshot'}
+        styleResult:
+          description: Style 분석 성공 전에는 null입니다.
           oneOf:
-            - $ref: '#/components/schemas/PortraitSummary'
+            - $ref: '#/components/schemas/StyleResultResponse'
             - type: 'null'
-        souvenir: {$ref: '#/components/schemas/JourneySouvenirCreateResponse'}
-        guideResponses:
-          type: array
-          items: {$ref: '#/components/schemas/GuideResponseSummary'}
+        portrait:
+          description: 선택 기능이므로 저장하지 않았거나 삭제한 경우 null입니다.
+          oneOf:
+            - $ref: '#/components/schemas/StylePortraitResponse'
+            - type: 'null'
+        souvenir:
+          description: Journey Souvenir 생성 전에는 null입니다.
+          oneOf:
+            - $ref: '#/components/schemas/JourneySouvenirResponse'
+            - type: 'null'
     ErrorResponse:
       type: object
       required: [timestamp, status, code, message, path, errors]
@@ -767,6 +902,7 @@ components:
         path: {type: string}
         errors:
           type: array
+          description: Field validation 오류 목록이며 validation 오류가 없으면 빈 배열입니다.
           items:
             type: object
             required: [field, reason]
