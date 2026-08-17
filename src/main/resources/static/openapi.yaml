@@ -1,0 +1,775 @@
+openapi: 3.1.0
+info:
+  title: MCM Passport API
+  version: 1.0.0
+  description: |
+    MCM Passport의 프론트엔드 연동 기준 계약입니다.
+    BE1 Journey/Boarding 및 BE2 Style/Result API를 노션 명세 기준으로 정의합니다.
+servers:
+  - url: /
+    description: 현재 서버
+tags:
+  - name: Passport Session
+  - name: Journey
+  - name: Product
+  - name: Boarding Pass
+  - name: Style Spot
+  - name: Style Result
+  - name: Style Portrait
+  - name: Journey Souvenir
+  - name: My Passport
+paths:
+  /api/passport-sessions:
+    post:
+      tags: [Passport Session]
+      summary: Passport Session 생성
+      operationId: createPassportSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassportSessionCreateRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassportSessionCreateResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/passport-sessions/{passportSessionId}:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    get:
+      tags: [Passport Session]
+      summary: Passport Session 조회
+      operationId: getPassportSession
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassportSessionResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/journey:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    get:
+      tags: [Journey]
+      summary: Journey 진행 상태 조회
+      operationId: getJourneyProgress
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyProgressResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/journey-spots:
+    get:
+      tags: [Journey]
+      summary: Journey Spot 목록 조회
+      operationId: getJourneySpots
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JourneySpotResponse'
+  /api/journey-spots/{journeySpotId}:
+    parameters:
+      - $ref: '#/components/parameters/JourneySpotId'
+    get:
+      tags: [Journey]
+      summary: Journey Spot 및 Guide 질문 조회
+      operationId: getJourneySpot
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneySpotDetailResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/guide-responses/{questionId}:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+      - $ref: '#/components/parameters/QuestionId'
+    put:
+      tags: [Journey]
+      summary: Guide 답변 저장 또는 수정
+      operationId: upsertGuideResponse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuideResponseRequest'
+      responses:
+        '200':
+          description: 저장 또는 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideResponseResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/passport-sessions/{passportSessionId}/journey-spots/{journeySpotId}/complete:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+      - $ref: '#/components/parameters/JourneySpotId'
+    post:
+      tags: [Journey]
+      summary: Journey Spot 완료 및 Stamp 발급
+      operationId: completeJourneySpot
+      responses:
+        '201':
+          description: Stamp 발급 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyStampResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Product]
+      summary: Product 조회
+      operationId: getProduct
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/product-tags:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    post:
+      tags: [Product]
+      summary: Product 태그
+      operationId: createProductTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTagCreateRequest'
+      responses:
+        '201':
+          description: 태그 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTagCreateResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    get:
+      tags: [Product]
+      summary: 태그한 Product 목록 조회
+      operationId: getProductTags
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductTagListResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/boarding-pass:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    post:
+      tags: [Boarding Pass]
+      summary: Boarding Pass 발급
+      operationId: issueBoardingPass
+      responses:
+        '201':
+          description: 발급 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingPassIssueResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    get:
+      tags: [Boarding Pass]
+      summary: Boarding Pass 조회
+      operationId: getBoardingPass
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingPassResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/style-spots/{styleSpotId}/connect:
+    parameters:
+      - $ref: '#/components/parameters/StyleSpotId'
+    post:
+      tags: [Style Spot]
+      summary: Passport와 Style Spot 연결
+      operationId: connectStyleSpot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StyleSpotConnectRequest'
+      responses:
+        '201':
+          description: 연결 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleSpotConnectResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/style-spot-sessions/{styleSpotSessionId}/disconnect:
+    parameters:
+      - $ref: '#/components/parameters/StyleSpotSessionId'
+    post:
+      tags: [Style Spot]
+      summary: Style Spot 연결 해제
+      operationId: disconnectStyleSpot
+      responses:
+        '200':
+          description: 연결 해제 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleSpotDisconnectResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/style-spots/{styleSpotId}/display:
+    parameters:
+      - $ref: '#/components/parameters/StyleSpotId'
+    get:
+      tags: [Style Spot]
+      summary: Display 상태 및 결과 조회
+      operationId: getStyleSpotDisplay
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleSpotDisplayResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/style-result:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    get:
+      tags: [Style Result]
+      summary: Style Result 조회
+      operationId: getStyleResult
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleResultResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/portrait:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    post:
+      tags: [Style Portrait]
+      summary: Style Portrait 저장
+      operationId: createStylePortrait
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StylePortraitRequest'
+      responses:
+        '201':
+          description: 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StylePortraitResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    get:
+      tags: [Style Portrait]
+      summary: Style Portrait 조회
+      operationId: getStylePortrait
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StylePortraitResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [Style Portrait]
+      summary: Style Portrait 삭제
+      operationId: deleteStylePortrait
+      responses:
+        '204':
+          description: 삭제 성공
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/souvenir:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    post:
+      tags: [Journey Souvenir]
+      summary: Journey Souvenir 생성
+      operationId: createJourneySouvenir
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneySouvenirCreateResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    get:
+      tags: [Journey Souvenir]
+      summary: Journey Souvenir 조회
+      operationId: getJourneySouvenir
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneySouvenirResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/passport-sessions/{passportSessionId}/my-passport:
+    parameters:
+      - $ref: '#/components/parameters/PassportSessionId'
+    get:
+      tags: [My Passport]
+      summary: 최종 My Passport 조회
+      operationId: getMyPassport
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyPassportResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  parameters:
+    PassportSessionId:
+      name: passportSessionId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    JourneySpotId:
+      name: journeySpotId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    QuestionId:
+      name: questionId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    StyleSpotId:
+      name: styleSpotId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    StyleSpotSessionId:
+      name: styleSpotSessionId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NotFound:
+      description: 리소스를 찾을 수 없음
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    Conflict:
+      description: 현재 상태에서 요청을 처리할 수 없음
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+  schemas:
+    PassportSessionCreateRequest:
+      type: object
+      required: [cardUid]
+      properties:
+        cardUid: {type: string, example: MCM-PASSPORT-001}
+    PassportSessionCreateResponse:
+      type: object
+      required: [passportSessionId, status, startedAt]
+      properties:
+        passportSessionId: {type: integer, format: int64, example: 17}
+        status: {$ref: '#/components/schemas/PassportSessionStatus'}
+        startedAt: {type: string, format: date-time}
+    PassportSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/PassportSessionCreateResponse'
+        - type: object
+          properties:
+            completedAt: {type: [string, 'null'], format: date-time}
+    PassportSessionStatus:
+      type: string
+      enum: [EXPLORING, READY_TO_BOARD, STYLE_SPOT, COMPLETED]
+    JourneyProgressResponse:
+      type: object
+      required: [passportSessionId, status, spots]
+      properties:
+        passportSessionId: {type: integer, format: int64}
+        status: {$ref: '#/components/schemas/PassportSessionStatus'}
+        spots:
+          type: array
+          items: {$ref: '#/components/schemas/JourneyProgressSpot'}
+    JourneyProgressSpot:
+      type: object
+      required: [id, code, name, sequence, required, completed]
+      properties:
+        id: {type: integer, format: int64}
+        code: {type: string, example: ORIGIN_GATE}
+        name: {type: string, example: Origin Gate}
+        sequence: {type: integer, example: 1}
+        required: {type: boolean, example: true}
+        completed: {type: boolean, example: true}
+        stampedAt: {type: [string, 'null'], format: date-time}
+    JourneySpotResponse:
+      type: object
+      required: [id, code, name, sequence, required]
+      properties:
+        id: {type: integer, format: int64}
+        code: {type: string}
+        name: {type: string}
+        description: {type: [string, 'null']}
+        sequence: {type: integer}
+        required: {type: boolean}
+    JourneySpotDetailResponse:
+      type: object
+      required: [id, code, name, questions]
+      properties:
+        id: {type: integer, format: int64}
+        code: {type: string}
+        name: {type: string}
+        questions:
+          type: array
+          items: {$ref: '#/components/schemas/GuideQuestion'}
+    GuideQuestion:
+      type: object
+      required: [id, code, questionText, required, sequence, options]
+      properties:
+        id: {type: integer, format: int64}
+        code: {type: string}
+        questionText: {type: string}
+        required: {type: boolean}
+        sequence: {type: integer}
+        options:
+          type: array
+          items: {$ref: '#/components/schemas/GuideOption'}
+    GuideOption:
+      type: object
+      required: [id, code, label, sequence]
+      properties:
+        id: {type: integer, format: int64}
+        code: {type: string}
+        label: {type: string}
+        sequence: {type: integer}
+    GuideResponseRequest:
+      type: object
+      required: [optionId]
+      properties:
+        optionId: {type: integer, format: int64}
+    GuideResponseResponse:
+      type: object
+      required: [guideResponseId, questionId, optionId, answeredAt]
+      properties:
+        guideResponseId: {type: integer, format: int64}
+        questionId: {type: integer, format: int64}
+        optionId: {type: integer, format: int64}
+        answeredAt: {type: string, format: date-time}
+    JourneyStampResponse:
+      type: object
+      required: [journeyStampId, journeySpotId, stampedAt]
+      properties:
+        journeyStampId: {type: integer, format: int64}
+        journeySpotId: {type: integer, format: int64}
+        stampedAt: {type: string, format: date-time}
+    ProductResponse:
+      type: object
+      required: [id, name, category, recommendable]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        category: {type: string}
+        color: {type: [string, 'null']}
+        material: {type: [string, 'null']}
+        silhouette: {type: [string, 'null']}
+        imageUrl: {type: [string, 'null'], format: uri}
+        recommendable: {type: boolean}
+    ProductTagCreateRequest:
+      type: object
+      required: [productId]
+      properties:
+        productId: {type: integer, format: int64}
+    ProductTagCreateResponse:
+      type: object
+      required: [productTagId, product, taggedAt]
+      properties:
+        productTagId: {type: integer, format: int64}
+        product: {$ref: '#/components/schemas/TaggedProduct'}
+        taggedAt: {type: string, format: date-time}
+    TaggedProduct:
+      type: object
+      required: [id, name, category]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        category: {type: string}
+        color: {type: [string, 'null']}
+        material: {type: [string, 'null']}
+        silhouette: {type: [string, 'null']}
+        imageUrl: {type: [string, 'null'], format: uri}
+    ProductTagListResponse:
+      type: object
+      required: [productId, name, taggedAt]
+      properties:
+        productId: {type: integer, format: int64}
+        name: {type: string}
+        taggedAt: {type: string, format: date-time}
+    BoardingPassIssueResponse:
+      type: object
+      required: [boardingPassId, passportSessionId, gate, issuedAt]
+      properties:
+        boardingPassId: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64}
+        gate: {type: string, example: STYLE_SPOT}
+        issuedAt: {type: string, format: date-time}
+    BoardingPassResponse:
+      type: object
+      required: [boardingPassId, gate, issuedAt]
+      properties:
+        boardingPassId: {type: integer, format: int64}
+        gate: {type: string, example: STYLE_SPOT}
+        issuedAt: {type: string, format: date-time}
+    StyleSpotConnectRequest:
+      type: object
+      required: [passportSessionId]
+      properties:
+        passportSessionId: {type: integer, format: int64}
+    StyleSpotConnectResponse:
+      type: object
+      required: [styleSpotSessionId, styleSpotId, passportSessionId, status, connectedAt]
+      properties:
+        styleSpotSessionId: {type: integer, format: int64}
+        styleSpotId: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64}
+        status: {type: string, enum: [STYLE_SPOT]}
+        connectedAt: {type: string, format: date-time}
+    StyleSpotDisconnectResponse:
+      type: object
+      required: [styleSpotSessionId, disconnectedAt]
+      properties:
+        styleSpotSessionId: {type: integer, format: int64}
+        disconnectedAt: {type: string, format: date-time}
+    StyleSpotDisplayResponse:
+      oneOf:
+        - $ref: '#/components/schemas/DisplayWaitingResponse'
+        - $ref: '#/components/schemas/DisplayProgressResponse'
+        - $ref: '#/components/schemas/DisplayResultResponse'
+      discriminator:
+        propertyName: displayStatus
+    DisplayWaitingResponse:
+      type: object
+      required: [displayStatus]
+      properties:
+        displayStatus: {type: string, enum: [WAITING]}
+    DisplayProgressResponse:
+      type: object
+      required: [displayStatus, passportSessionId]
+      properties:
+        displayStatus: {type: string, enum: [CONNECTED, ANALYZING]}
+        passportSessionId: {type: integer, format: int64}
+    DisplayResultResponse:
+      type: object
+      required: [displayStatus, passportSessionId, cityCode, styleDestination, styleMoods, recommendedProduct, background, resultMessage]
+      properties:
+        displayStatus: {type: string, enum: [RESULT]}
+        passportSessionId: {type: integer, format: int64}
+        cityCode: {type: string, example: BERLIN_AFTERDARK_NOMAD}
+        styleDestination: {type: string, example: Berlin After Dark}
+        styleMoods:
+          type: array
+          items: {type: string}
+        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
+        background: {$ref: '#/components/schemas/BackgroundSummary'}
+        resultMessage: {type: string}
+    StyleResultResponse:
+      type: object
+      required: [styleResultId, cityCode, styleDestination, styleMoods, resultMessage, recommendedProduct, background, resultSource, createdAt]
+      properties:
+        styleResultId: {type: integer, format: int64}
+        cityCode: {type: string}
+        styleDestination: {type: string}
+        styleMoods:
+          type: array
+          items: {type: string}
+        resultMessage: {type: string}
+        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
+        background: {$ref: '#/components/schemas/BackgroundDetail'}
+        resultSource: {type: string, enum: [AI, FALLBACK]}
+        createdAt: {type: string, format: date-time}
+    ProductSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        imageUrl: {type: [string, 'null'], format: uri}
+    BackgroundSummary:
+      type: object
+      required: [mediaUrl, mediaType]
+      properties:
+        mediaUrl: {type: string, format: uri}
+        mediaType: {type: string, enum: [IMAGE, VIDEO]}
+    BackgroundDetail:
+      allOf:
+        - $ref: '#/components/schemas/BackgroundSummary'
+        - type: object
+          required: [id]
+          properties:
+            id: {type: integer, format: int64}
+    StylePortraitRequest:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl: {type: string, format: uri}
+    StylePortraitResponse:
+      type: object
+      required: [stylePortraitId, imageUrl, createdAt]
+      properties:
+        stylePortraitId: {type: integer, format: int64}
+        imageUrl: {type: string, format: uri}
+        createdAt: {type: string, format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+    JourneySouvenirCreateResponse:
+      type: object
+      required: [journeySouvenirId, passportSessionId, privateBenefit, generatedAt]
+      properties:
+        journeySouvenirId: {type: integer, format: int64}
+        passportSessionId: {type: integer, format: int64}
+        privateBenefit: {type: string}
+        generatedAt: {type: string, format: date-time}
+    JourneySouvenirResponse:
+      type: object
+      required: [journeySouvenirId, cityCode, styleDestination, styleMoods, recommendedProduct, journeyStamps, taggedProducts, privateBenefit, generatedAt]
+      properties:
+        journeySouvenirId: {type: integer, format: int64}
+        cityCode: {type: string}
+        styleDestination: {type: string}
+        styleMoods:
+          type: array
+          items: {type: string}
+        recommendedProduct: {$ref: '#/components/schemas/ProductSummary'}
+        journeyStamps:
+          type: array
+          items: {$ref: '#/components/schemas/JourneyStampSummary'}
+        taggedProducts:
+          type: array
+          items: {$ref: '#/components/schemas/ProductSummary'}
+        portrait:
+          oneOf:
+            - $ref: '#/components/schemas/PortraitSummary'
+            - type: 'null'
+        privateBenefit: {type: string}
+        generatedAt: {type: string, format: date-time}
+    JourneyStampSummary:
+      type: object
+      required: [spotCode, spotName]
+      properties:
+        spotCode: {type: string}
+        spotName: {type: string}
+        stampedAt: {type: string, format: date-time}
+    PortraitSummary:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl: {type: string, format: uri}
+    GuideResponseSummary:
+      type: object
+      required: [spotCode, questionCode, questionText, optionCode, optionLabel]
+      properties:
+        spotCode: {type: string}
+        questionCode: {type: string}
+        questionText: {type: string}
+        optionCode: {type: string}
+        optionLabel: {type: string}
+    MyPassportResponse:
+      type: object
+      required: [passportSessionId, status, journeyStamps, taggedProducts, styleResult, guideResponses]
+      properties:
+        passportSessionId: {type: integer, format: int64}
+        status: {type: string, enum: [COMPLETED]}
+        journeyStamps:
+          type: array
+          items: {$ref: '#/components/schemas/JourneyStampSummary'}
+        taggedProducts:
+          type: array
+          items: {$ref: '#/components/schemas/ProductSummary'}
+        styleResult: {$ref: '#/components/schemas/StyleResultResponse'}
+        portrait:
+          oneOf:
+            - $ref: '#/components/schemas/PortraitSummary'
+            - type: 'null'
+        souvenir: {$ref: '#/components/schemas/JourneySouvenirCreateResponse'}
+        guideResponses:
+          type: array
+          items: {$ref: '#/components/schemas/GuideResponseSummary'}
+    ErrorResponse:
+      type: object
+      required: [timestamp, status, code, message, path, errors]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer, example: 404}
+        code: {type: string, example: PASSPORT_SESSION_NOT_FOUND}
+        message: {type: string}
+        path: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, reason]
+            properties:
+              field: {type: string}
+              reason: {type: string}
