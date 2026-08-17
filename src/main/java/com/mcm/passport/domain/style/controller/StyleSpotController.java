@@ -2,8 +2,11 @@ package com.mcm.passport.domain.style.controller;
 
 import com.mcm.passport.domain.style.dto.ConnectStyleSpotRequest;
 import com.mcm.passport.domain.style.dto.StyleResultResponse;
+import com.mcm.passport.domain.style.dto.StyleSpotConnectResponse;
+import com.mcm.passport.domain.style.dto.StyleSpotDisplayResponse;
 import com.mcm.passport.domain.style.dto.StyleSpotResponse;
 import com.mcm.passport.domain.style.service.StyleAnalysisService;
+import com.mcm.passport.domain.style.service.StyleSpotFlowService;
 import com.mcm.passport.domain.style.service.StyleSpotService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -20,13 +23,32 @@ public class StyleSpotController {
 
 	private final StyleSpotService styleSpotService;
 	private final StyleAnalysisService styleAnalysisService;
+	private final StyleSpotFlowService styleSpotFlowService;
 
 	public StyleSpotController(
 			StyleSpotService styleSpotService,
-			StyleAnalysisService styleAnalysisService
+			StyleAnalysisService styleAnalysisService,
+			StyleSpotFlowService styleSpotFlowService
 	) {
 		this.styleSpotService = styleSpotService;
 		this.styleAnalysisService = styleAnalysisService;
+		this.styleSpotFlowService = styleSpotFlowService;
+	}
+
+	@PostMapping("/{styleSpotId}/connect")
+	public ResponseEntity<StyleSpotConnectResponse> connectAndAnalyze(
+			@PathVariable String styleSpotId,
+			@Valid @RequestBody ConnectStyleSpotRequest request
+	) {
+		return ResponseEntity.ok(styleSpotFlowService.connectAndAnalyze(
+				styleSpotId,
+				request.passportSessionId()
+		));
+	}
+
+	@GetMapping("/{styleSpotId}/display")
+	public ResponseEntity<StyleSpotDisplayResponse> display(@PathVariable String styleSpotId) {
+		return ResponseEntity.ok(styleSpotFlowService.display(styleSpotId));
 	}
 
 	@PostMapping("/{spotCode}/connections")
@@ -34,7 +56,8 @@ public class StyleSpotController {
 			@PathVariable String spotCode,
 			@Valid @RequestBody ConnectStyleSpotRequest request
 	) {
-		return ResponseEntity.ok(styleSpotService.connect(spotCode, request.passportSessionId()));
+		styleSpotService.connectSession(spotCode, request.passportSessionId());
+		return ResponseEntity.ok(styleSpotService.display(spotCode));
 	}
 
 	@PostMapping("/{spotCode}/analysis")

@@ -18,6 +18,7 @@ public enum ErrorCode {
 	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "Product를 찾을 수 없습니다."),
 	BOARDING_PASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Boarding Pass를 찾을 수 없습니다."),
 	STYLE_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "Style Spot을 찾을 수 없습니다."),
+	STYLE_SPOT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Style Spot Session을 찾을 수 없습니다."),
 	STYLE_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "Style Result를 찾을 수 없습니다."),
 	STYLE_PORTRAIT_NOT_FOUND(HttpStatus.NOT_FOUND, "Style Portrait을 찾을 수 없습니다."),
 	JOURNEY_SOUVENIR_NOT_FOUND(HttpStatus.NOT_FOUND, "Journey Souvenir를 찾을 수 없습니다."),

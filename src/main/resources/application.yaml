@@ -19,8 +19,6 @@ server:
 mcm:
   reference-data:
     enabled: ${MCM_REFERENCE_DATA_ENABLED:true}
-  demo:
-    seed: ${MCM_DEMO_SEED:false}
   style:
     analysis:
       provider: ${MCM_STYLE_ANALYSIS_PROVIDER:mock}

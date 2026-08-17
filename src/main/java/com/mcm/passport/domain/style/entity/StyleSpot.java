@@ -1,16 +1,12 @@
 package com.mcm.passport.domain.style.entity;
 
-import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.global.exception.BusinessException;
 import com.mcm.passport.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
@@ -27,10 +23,6 @@ public class StyleSpot {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private StyleSpotStatus status;
-
-	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "passport_session_id", unique = true)
-	private PassportSession passportSession;
 
 	@Column(name = "analysis_attempt", nullable = false)
 	private long analysisAttempt;
@@ -50,21 +42,16 @@ public class StyleSpot {
 		return new StyleSpot(code);
 	}
 
-	public void connect(PassportSession session) {
-		if (status == StyleSpotStatus.CONNECTED && hasSession(session.getId())) {
-			return;
-		}
+	public void connect() {
 		if (status != StyleSpotStatus.WAITING && status != StyleSpotStatus.RESET) {
 			throw new BusinessException(ErrorCode.STYLE_SPOT_IN_USE);
 		}
 
-		session.enterStyleSpot();
-		passportSession = session;
 		status = StyleSpotStatus.CONNECTED;
 	}
 
 	public long startAnalysis() {
-		if (status != StyleSpotStatus.CONNECTED || passportSession == null) {
+		if (status != StyleSpotStatus.CONNECTED) {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);
 		}
 		analysisAttempt++;
@@ -72,23 +59,22 @@ public class StyleSpot {
 		return analysisAttempt;
 	}
 
-	public void finishAnalysis(Long passportSessionId, long expectedAttempt) {
-		if (!isCurrentAnalysisAttempt(passportSessionId, expectedAttempt)
-				|| status != StyleSpotStatus.ANALYZING) {
+	public void finishAnalysis(long expectedAttempt) {
+		if (!isCurrentAnalysisAttempt(expectedAttempt) || status != StyleSpotStatus.ANALYZING) {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);
 		}
 		status = StyleSpotStatus.RESULT;
 	}
 
-	public void failAnalysis(Long passportSessionId, long expectedAttempt) {
+	public void failAnalysis(long expectedAttempt) {
 		if (status == StyleSpotStatus.ANALYZING
-				&& isCurrentAnalysisAttempt(passportSessionId, expectedAttempt)) {
+				&& isCurrentAnalysisAttempt(expectedAttempt)) {
 			status = StyleSpotStatus.CONNECTED;
 		}
 	}
 
-	public boolean isCurrentAnalysisAttempt(Long passportSessionId, long expectedAttempt) {
-		return hasSession(passportSessionId) && analysisAttempt == expectedAttempt;
+	public boolean isCurrentAnalysisAttempt(long expectedAttempt) {
+		return analysisAttempt == expectedAttempt;
 	}
 
 	public void reset() {
@@ -100,12 +86,7 @@ public class StyleSpot {
 				&& status != StyleSpotStatus.RESULT) {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);
 		}
-		passportSession = null;
 		status = StyleSpotStatus.RESET;
-	}
-
-	public boolean hasSession(Long passportSessionId) {
-		return passportSession != null && Objects.equals(passportSession.getId(), passportSessionId);
 	}
 
 	public String getCode() {
@@ -114,10 +95,6 @@ public class StyleSpot {
 
 	public StyleSpotStatus getStatus() {
 		return status;
-	}
-
-	public PassportSession getPassportSession() {
-		return passportSession;
 	}
 
 	public long getAnalysisAttempt() {
