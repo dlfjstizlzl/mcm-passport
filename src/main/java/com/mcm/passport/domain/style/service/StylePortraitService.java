@@ -31,7 +31,7 @@ public class StylePortraitService {
 
 	@Transactional
 	public StylePortraitResponse create(Long passportSessionId, StylePortraitRequest request) {
-		PassportSession passportSession = passportSessionRepository.findById(passportSessionId)
+		PassportSession passportSession = passportSessionRepository.findByIdForUpdate(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND));
 		if (!styleResultRepository.findByPassportSessionId(passportSessionId).isPresent()) {
 			throw new BusinessException(ErrorCode.STYLE_RESULT_NOT_FOUND);
