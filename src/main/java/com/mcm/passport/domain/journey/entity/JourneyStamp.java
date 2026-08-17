@@ -17,10 +17,10 @@ import java.util.Objects;
 
 @Entity
 @Table(
-		name = "journey_stamps",
+		name = "journey_stamp",
 		uniqueConstraints = @UniqueConstraint(
 				name = "uk_journey_stamp_session_spot",
-				columnNames = {"passport_session_id", "spot_code"}
+				columnNames = {"passport_session_id", "journey_spot_id"}
 		)
 )
 public class JourneyStamp {
@@ -33,26 +33,24 @@ public class JourneyStamp {
 	@JoinColumn(name = "passport_session_id", nullable = false)
 	private PassportSession passportSession;
 
-	@Column(name = "spot_code", nullable = false, length = 64)
-	private String spotCode;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "journey_spot_id", nullable = false)
+	private JourneySpot journeySpot;
 
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private Instant createdAt;
+	@Column(name = "stamped_at", nullable = false, updatable = false)
+	private Instant stampedAt;
 
 	protected JourneyStamp() {
 	}
 
-	private JourneyStamp(PassportSession passportSession, String spotCode) {
+	private JourneyStamp(PassportSession passportSession, JourneySpot journeySpot) {
 		this.passportSession = Objects.requireNonNull(passportSession, "passportSession must not be null");
-		if (spotCode == null || spotCode.isBlank()) {
-			throw new IllegalArgumentException("spotCode must not be blank");
-		}
-		this.spotCode = spotCode;
-		this.createdAt = Instant.now();
+		this.journeySpot = Objects.requireNonNull(journeySpot, "journeySpot must not be null");
+		this.stampedAt = Instant.now();
 	}
 
-	public static JourneyStamp create(PassportSession passportSession, String spotCode) {
-		return new JourneyStamp(passportSession, spotCode);
+	public static JourneyStamp create(PassportSession passportSession, JourneySpot journeySpot) {
+		return new JourneyStamp(passportSession, journeySpot);
 	}
 
 	public Long getId() {
@@ -63,11 +61,11 @@ public class JourneyStamp {
 		return passportSession;
 	}
 
-	public String getSpotCode() {
-		return spotCode;
+	public JourneySpot getJourneySpot() {
+		return journeySpot;
 	}
 
-	public Instant getCreatedAt() {
-		return createdAt;
+	public Instant getStampedAt() {
+		return stampedAt;
 	}
 }

@@ -6,71 +6,132 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
-import java.time.Instant;
+import java.text.Normalizer;
+import java.util.Locale;
 
 @Entity
-@Table(
-		name = "products",
-		uniqueConstraints = @UniqueConstraint(name = "uk_product_code", columnNames = "code")
-)
+@Table(name = "product")
 public class Product {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(nullable = false, length = 64)
-	private String code;
-
-	@Column(nullable = false, length = 128)
+	@Column(nullable = false, length = 255)
 	private String name;
+
+	@Column(nullable = false, length = 100)
+	private String category;
+
+	@Column(length = 100)
+	private String color;
+
+	@Column(length = 100)
+	private String material;
+
+	@Column(length = 100)
+	private String silhouette;
+
+	@Column(name = "image_url", length = 1000)
+	private String imageUrl;
+
+	@Column(nullable = false)
+	private boolean recommendable;
 
 	@Column(nullable = false)
 	private boolean active;
 
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private Instant createdAt;
-
 	protected Product() {
 	}
 
-	private Product(String code, String name) {
-		this.code = requireText(code, "code");
+	private Product(
+			String name,
+			String category,
+			String color,
+			String material,
+			String silhouette,
+			String imageUrl,
+			boolean recommendable
+	) {
 		this.name = requireText(name, "name");
+		this.category = requireText(category, "category");
+		this.color = normalizeNullable(color);
+		this.material = normalizeNullable(material);
+		this.silhouette = normalizeNullable(silhouette);
+		this.imageUrl = normalizeNullable(imageUrl);
+		this.recommendable = recommendable;
 		this.active = true;
-		this.createdAt = Instant.now();
 	}
 
-	public static Product create(String code, String name) {
-		return new Product(code, name);
+	public static Product create(
+			String name,
+			String category,
+			String color,
+			String material,
+			String silhouette,
+			String imageUrl,
+			boolean recommendable
+	) {
+		return new Product(name, category, color, material, silhouette, imageUrl, recommendable);
 	}
 
 	private static String requireText(String value, String fieldName) {
 		if (value == null || value.isBlank()) {
 			throw new IllegalArgumentException(fieldName + " must not be blank");
 		}
-		return value;
+		return value.trim();
+	}
+
+	private static String normalizeNullable(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	public Long getId() {
 		return id;
 	}
 
-	public String getCode() {
-		return code;
-	}
-
 	public String getName() {
 		return name;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public String getColor() {
+		return color;
+	}
+
+	public String getMaterial() {
+		return material;
+	}
+
+	public String getSilhouette() {
+		return silhouette;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public boolean isRecommendable() {
+		return recommendable;
 	}
 
 	public boolean isActive() {
 		return active;
 	}
 
-	public Instant getCreatedAt() {
-		return createdAt;
+	public void deactivate() {
+		this.active = false;
+	}
+
+	/** Compatibility code used by the current BE2 prototype catalog without an extra DB column. */
+	public String getCode() {
+		return Normalizer.normalize(name, Normalizer.Form.NFKD)
+				.replaceAll("[^A-Za-z0-9]+", "_")
+				.replaceAll("^_+|_+$", "")
+				.toUpperCase(Locale.ROOT);
 	}
 }

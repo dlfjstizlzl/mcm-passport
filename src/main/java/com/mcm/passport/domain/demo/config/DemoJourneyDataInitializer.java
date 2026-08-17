@@ -4,10 +4,14 @@ import com.mcm.passport.domain.demo.entity.DemoJourneySeed;
 import com.mcm.passport.domain.demo.repository.DemoJourneySeedRepository;
 import com.mcm.passport.domain.journey.entity.JourneyResponse;
 import com.mcm.passport.domain.journey.entity.JourneyStamp;
+import com.mcm.passport.domain.journey.entity.JourneySpot;
 import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
+import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
+import com.mcm.passport.domain.passport.entity.PassportCard;
+import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
@@ -20,12 +24,14 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Component
 @ConditionalOnProperty(name = "mcm.demo.seed", havingValue = "true")
+@Order(1)
 public class DemoJourneyDataInitializer implements ApplicationRunner {
 
 	public static final String WITHOUT_PRODUCT_TAG_SEED_KEY = "BE2_WITHOUT_PRODUCT_TAG";
@@ -34,24 +40,30 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 	private static final Logger log = LoggerFactory.getLogger(DemoJourneyDataInitializer.class);
 
 	private final DemoJourneySeedRepository demoJourneySeedRepository;
+	private final PassportCardRepository passportCardRepository;
 	private final PassportSessionRepository passportSessionRepository;
 	private final JourneyResponseRepository journeyResponseRepository;
 	private final JourneyStampRepository journeyStampRepository;
+	private final JourneySpotRepository journeySpotRepository;
 	private final ProductRepository productRepository;
 	private final ProductTagRepository productTagRepository;
 
 	public DemoJourneyDataInitializer(
 			DemoJourneySeedRepository demoJourneySeedRepository,
+			PassportCardRepository passportCardRepository,
 			PassportSessionRepository passportSessionRepository,
 			JourneyResponseRepository journeyResponseRepository,
 			JourneyStampRepository journeyStampRepository,
+			JourneySpotRepository journeySpotRepository,
 			ProductRepository productRepository,
 			ProductTagRepository productTagRepository
 	) {
 		this.demoJourneySeedRepository = demoJourneySeedRepository;
+		this.passportCardRepository = passportCardRepository;
 		this.passportSessionRepository = passportSessionRepository;
 		this.journeyResponseRepository = journeyResponseRepository;
 		this.journeyStampRepository = journeyStampRepository;
+		this.journeySpotRepository = journeySpotRepository;
 		this.productRepository = productRepository;
 		this.productTagRepository = productTagRepository;
 	}
@@ -81,19 +93,21 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 			return passportSession;
 		}
 
-		PassportSession replacement = createDemoSession(includeProductTag);
+		PassportSession replacement = createDemoSession(seed.getSeedKey(), includeProductTag);
 		seed.replacePassportSession(replacement);
 		return replacement;
 	}
 
 	private PassportSession createDemoSeed(String seedKey, boolean includeProductTag) {
-		PassportSession passportSession = createDemoSession(includeProductTag);
+		PassportSession passportSession = createDemoSession(seedKey, includeProductTag);
 		demoJourneySeedRepository.save(DemoJourneySeed.create(seedKey, passportSession));
 		return passportSession;
 	}
 
-	private PassportSession createDemoSession(boolean includeProductTag) {
-		PassportSession passportSession = passportSessionRepository.save(PassportSession.readyToBoard());
+	private PassportSession createDemoSession(String seedKey, boolean includeProductTag) {
+		PassportCard passportCard = passportCardRepository.findByCardUid(seedKey)
+				.orElseGet(() -> passportCardRepository.save(PassportCard.issue(seedKey)));
+		PassportSession passportSession = passportSessionRepository.save(PassportSession.readyToBoard(passportCard));
 		journeyResponseRepository.saveAll(demoResponses(passportSession));
 		journeyStampRepository.saveAll(demoStamps(passportSession));
 
@@ -126,19 +140,29 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 
 	private List<JourneyStamp> demoStamps(PassportSession passportSession) {
 		return List.of(
-				JourneyStamp.create(passportSession, "ORIGIN_GATE"),
-				JourneyStamp.create(passportSession, "MATERIAL_LOUNGE"),
-				JourneyStamp.create(passportSession, "MOVEMENT_DECK"),
-				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM")
+				stamp(passportSession, "ORIGIN_GATE"),
+				stamp(passportSession, "MATERIAL_LOUNGE"),
+				stamp(passportSession, "MOVEMENT_DECK"),
+				stamp(passportSession, "CITY_MOOD_ROOM")
 		);
 	}
 
+	private JourneyStamp stamp(PassportSession passportSession, String spotCode) {
+		JourneySpot journeySpot = journeySpotRepository.findByCode(spotCode).orElseThrow();
+		return JourneyStamp.create(passportSession, journeySpot);
+	}
+
 	private Product findOrCreateStarkBackpack() {
-		String productCode = RecommendedProduct.STARK_BACKPACK.name();
-		return productRepository.findByCode(productCode)
+		String productName = RecommendedProduct.STARK_BACKPACK.getDisplayName();
+		return productRepository.findFirstByName(productName)
 				.orElseGet(() -> productRepository.save(Product.create(
-						productCode,
-						RecommendedProduct.STARK_BACKPACK.getDisplayName()
+						productName,
+						"BACKPACK",
+						"BLACK",
+						"VISETOS",
+						"STRUCTURED",
+						null,
+						true
 				)));
 	}
 }

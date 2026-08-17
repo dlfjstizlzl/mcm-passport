@@ -41,15 +41,15 @@ public class RuleBasedStyleFallback {
 		String signals = (taggedProducts + " " + responses).toUpperCase(Locale.ROOT);
 
 		if (signals.contains("DIAMANT") || signals.contains("ELEGANT") || signals.contains("CLASSIC")) {
-			return CityCode.PARIS_MODERN_VOYAGER;
+			return CityCode.TOKYO_QUIET_MINIMALIST;
 		}
 		if (signals.contains("AREN") || signals.contains("CREATIVE") || signals.contains("TREND")) {
-			return CityCode.SEOUL_CREATIVE_MOVER;
+			return CityCode.SEOUL_NEON_PLAYER;
 		}
 		if (signals.contains("STARK") || signals.contains("AFTERDARK") || signals.contains("DYNAMIC")) {
 			return CityCode.BERLIN_AFTERDARK_NOMAD;
 		}
-		return CityCode.SEOUL_CREATIVE_MOVER;
+		return CityCode.SEOUL_NEON_PLAYER;
 	}
 
 	private RecommendedProduct firstCuratedTaggedProduct(

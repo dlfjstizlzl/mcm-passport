@@ -54,7 +54,7 @@ class DemoJourneyDataInitializerDisabledTest {
 		assertThat(journeyResponseRepository.count()).isZero();
 		assertThat(journeyStampRepository.count()).isZero();
 		assertThat(productTagRepository.count()).isZero();
-		assertThat(productRepository.count()).isZero();
+		assertThat(productRepository.count()).isEqualTo(1);
 	}
 
 	@Test

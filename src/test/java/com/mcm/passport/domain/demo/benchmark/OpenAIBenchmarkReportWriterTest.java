@@ -20,7 +20,7 @@ class OpenAIBenchmarkReportWriterTest {
 	void writesCsvJsonAndHumanReadableMarkdownReportsOffline() throws Exception {
 		OpenAIBenchmarkExecution execution = execution(List.of(
 				run(1, "CASE_A_WITHOUT_PRODUCT_TAG", "BERLIN_AFTERDARK_NOMAD", false, true),
-				run(2, "CASE_B_WITH_PRODUCT_TAG", "SEOUL_CREATIVE_MOVER", false, true)
+				run(2, "CASE_B_WITH_PRODUCT_TAG", "SEOUL_NEON_PLAYER", false, true)
 		));
 		OpenAIBenchmarkSummary summary = OpenAIBenchmarkSummary.from(
 				execution,
@@ -183,7 +183,7 @@ class OpenAIBenchmarkReportWriterTest {
 				cityCode,
 				"STARK_BACKPACK",
 				"AFTERDARK_MOVEMENT",
-				"BERLIN_AFTERDARK",
+				"BERLIN_AFTER_DARK",
 				90,
 				usedFallback,
 				1_000L,
@@ -209,7 +209,7 @@ class OpenAIBenchmarkReportWriterTest {
 				"BERLIN_AFTERDARK_NOMAD",
 				"STARK_BACKPACK",
 				"AFTERDARK_MOVEMENT",
-				"BERLIN_AFTERDARK",
+				"BERLIN_AFTER_DARK",
 				90,
 				true,
 				null,

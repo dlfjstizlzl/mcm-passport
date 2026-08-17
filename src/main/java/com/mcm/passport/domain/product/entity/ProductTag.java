@@ -17,7 +17,7 @@ import java.util.Objects;
 
 @Entity
 @Table(
-		name = "product_tags",
+		name = "product_tag",
 		uniqueConstraints = @UniqueConstraint(
 				name = "uk_product_tag_session_product",
 				columnNames = {"passport_session_id", "product_id"}
@@ -37,8 +37,8 @@ public class ProductTag {
 	@JoinColumn(name = "product_id", nullable = false)
 	private Product product;
 
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private Instant createdAt;
+	@Column(name = "tagged_at", nullable = false, updatable = false)
+	private Instant taggedAt;
 
 	protected ProductTag() {
 	}
@@ -46,7 +46,7 @@ public class ProductTag {
 	private ProductTag(PassportSession passportSession, Product product) {
 		this.passportSession = Objects.requireNonNull(passportSession, "passportSession must not be null");
 		this.product = Objects.requireNonNull(product, "product must not be null");
-		this.createdAt = Instant.now();
+		this.taggedAt = Instant.now();
 	}
 
 	public static ProductTag create(PassportSession passportSession, Product product) {
@@ -65,7 +65,7 @@ public class ProductTag {
 		return product;
 	}
 
-	public Instant getCreatedAt() {
-		return createdAt;
+	public Instant getTaggedAt() {
+		return taggedAt;
 	}
 }

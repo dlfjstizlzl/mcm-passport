@@ -19,10 +19,10 @@ class StyleAnalysisEngineTest {
 	@Test
 	void validProviderResultUsesCuratedValuesWithoutFallback() {
 		StyleAnalysisProvider provider = journeyData -> new StyleAnalysisCandidate(
-				CityCode.PARIS_MODERN_VOYAGER.name(),
+				CityCode.TOKYO_QUIET_MINIMALIST.name(),
 				RecommendedProduct.DIAMANT_3D_SHOULDER_BAG.name(),
 				StyleMood.MODERN_ELEGANCE.name(),
-				CityBackground.PARIS_MODERN_CLASSIC.name(),
+				CityBackground.TOKYO_QUIET_LINE.name(),
 				"A curated modern Paris result.",
 				94
 		);
@@ -30,17 +30,17 @@ class StyleAnalysisEngineTest {
 		StyleAnalysisDecision decision = engine(provider).analyze(journeyData());
 
 		assertThat(decision.usedFallback()).isFalse();
-		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.PARIS_MODERN_VOYAGER);
+		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.TOKYO_QUIET_MINIMALIST);
 		assertThat(decision.analysis().recommendedProduct())
 				.isEqualTo(RecommendedProduct.DIAMANT_3D_SHOULDER_BAG);
 		assertThat(decision.analysis().styleMood()).isEqualTo(StyleMood.MODERN_ELEGANCE);
-		assertThat(decision.analysis().background()).isEqualTo(CityBackground.PARIS_MODERN_CLASSIC);
+		assertThat(decision.analysis().background()).isEqualTo(CityBackground.TOKYO_QUIET_LINE);
 		assertThat(decision.analysis().matchScore()).isEqualTo(94);
 	}
 
 	@Test
 	void invalidCityCodeUsesCurrentPrototypeFallback() {
-		StyleAnalysisProvider provider = journeyData -> candidate("UNLISTED_CITY", CityBackground.BERLIN_AFTERDARK.name());
+		StyleAnalysisProvider provider = journeyData -> candidate("UNLISTED_CITY", CityBackground.BERLIN_AFTER_DARK.name());
 
 		StyleAnalysisDecision decision = engine(provider).analyze(journeyData());
 
@@ -53,7 +53,7 @@ class StyleAnalysisEngineTest {
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
 				"UNLISTED_PRODUCT",
 				StyleMood.AFTERDARK_MOVEMENT.name(),
-				CityBackground.BERLIN_AFTERDARK.name(),
+				CityBackground.BERLIN_AFTER_DARK.name(),
 				"A provider result that must be validated.",
 				92
 		);
@@ -67,7 +67,7 @@ class StyleAnalysisEngineTest {
 	void backgroundNotCuratedForCityUsesCurrentPrototypeFallback() {
 		StyleAnalysisProvider provider = journeyData -> candidate(
 				CityCode.BERLIN_AFTERDARK_NOMAD.name(),
-				CityBackground.SEOUL_NEON_PULSE.name()
+				CityBackground.SEOUL_PULSE.name()
 		);
 
 		StyleAnalysisDecision decision = engine(provider).analyze(journeyData());
@@ -110,10 +110,10 @@ class StyleAnalysisEngineTest {
 		StyleAnalysisDecision decision = engine(provider).analyze(parisJourney);
 
 		assertThat(decision.usedFallback()).isTrue();
-		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.PARIS_MODERN_VOYAGER);
+		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.TOKYO_QUIET_MINIMALIST);
 		assertThat(decision.analysis().recommendedProduct())
 				.isEqualTo(RecommendedProduct.DIAMANT_3D_SHOULDER_BAG);
-		assertThat(decision.analysis().background()).isEqualTo(CityBackground.PARIS_MODERN_CLASSIC);
+		assertThat(decision.analysis().background()).isEqualTo(CityBackground.TOKYO_QUIET_LINE);
 	}
 
 	private StyleAnalysisEngine engine(StyleAnalysisProvider provider) {
@@ -154,7 +154,7 @@ class StyleAnalysisEngineTest {
 		assertThat(decision.analysis().cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD);
 		assertThat(decision.analysis().recommendedProduct()).isEqualTo(RecommendedProduct.STARK_BACKPACK);
 		assertThat(decision.analysis().styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT);
-		assertThat(decision.analysis().background()).isEqualTo(CityBackground.BERLIN_AFTERDARK);
+		assertThat(decision.analysis().background()).isEqualTo(CityBackground.BERLIN_AFTER_DARK);
 		assertThat(decision.analysis().matchScore()).isEqualTo(85);
 	}
 }

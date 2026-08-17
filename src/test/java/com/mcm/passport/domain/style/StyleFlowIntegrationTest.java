@@ -2,10 +2,14 @@ package com.mcm.passport.domain.style;
 
 import com.mcm.passport.domain.journey.entity.JourneyResponse;
 import com.mcm.passport.domain.journey.entity.JourneyStamp;
+import com.mcm.passport.domain.journey.entity.JourneySpot;
 import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
+import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
+import com.mcm.passport.domain.passport.entity.PassportCard;
+import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
@@ -40,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,10 +70,16 @@ class StyleFlowIntegrationTest {
 	private PassportSessionRepository passportSessionRepository;
 
 	@Autowired
+	private PassportCardRepository passportCardRepository;
+
+	@Autowired
 	private JourneyResponseRepository journeyResponseRepository;
 
 	@Autowired
 	private JourneyStampRepository journeyStampRepository;
+
+	@Autowired
+	private JourneySpotRepository journeySpotRepository;
 
 	@Autowired
 	private ProductRepository productRepository;
@@ -112,8 +123,8 @@ class StyleFlowIntegrationTest {
 		assertThat(analyzed.cityCode()).isEqualTo(CityCode.BERLIN_AFTERDARK_NOMAD.name());
 		assertThat(analyzed.recommendedProductCode()).isEqualTo(RecommendedProduct.STARK_BACKPACK.name());
 		assertThat(analyzed.styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT.name());
-		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTERDARK.name());
-		assertThat(analyzed.matchScore()).isEqualTo(92);
+		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTER_DARK.name());
+		assertThat(analyzed.matchScore()).isEqualTo(91);
 		assertThat(analyzed.usedFallback()).isFalse();
 		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
 				.isEqualTo(StyleSpotStatus.RESULT);
@@ -175,7 +186,7 @@ class StyleFlowIntegrationTest {
 
 	@Test
 	void rejectsStyleSpotConnectionBeforeBoardingIsReady() {
-		PassportSession activeSession = passportSessionRepository.saveAndFlush(PassportSession.start());
+		PassportSession activeSession = saveExploringSession();
 
 		assertThatThrownBy(() -> styleSpotService.connect(STYLE_SPOT_CODE, activeSession.getId()))
 				.isInstanceOfSatisfying(BusinessException.class, exception ->
@@ -187,7 +198,7 @@ class StyleFlowIntegrationTest {
 
 	@Test
 	void rejectsAnalysisWhenReadySessionHasNoJourneyData() {
-		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		PassportSession passportSession = saveReadyToBoardSession();
 		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
 
 		assertThatThrownBy(() -> styleAnalysisService.analyze(STYLE_SPOT_CODE))
@@ -255,15 +266,20 @@ class StyleFlowIntegrationTest {
 	private PassportSession createJourneyData() {
 		PassportSession passportSession = createJourneyDataWithoutProductTag();
 		Product product = productRepository.saveAndFlush(Product.create(
-				RecommendedProduct.STARK_BACKPACK.name(),
-				RecommendedProduct.STARK_BACKPACK.getDisplayName()
+				RecommendedProduct.STARK_BACKPACK.getDisplayName(),
+				"BACKPACK",
+				"BLACK",
+				"VISETOS",
+				"STRUCTURED",
+				null,
+				true
 		));
 		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
 		return passportSession;
 	}
 
 	private PassportSession createJourneyDataWithoutProductTag() {
-		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		PassportSession passportSession = saveReadyToBoardSession();
 		journeyResponseRepository.saveAll(List.of(
 				JourneyResponse.create(
 						passportSession,
@@ -281,11 +297,10 @@ class StyleFlowIntegrationTest {
 				)
 		));
 		journeyStampRepository.saveAll(List.of(
-				JourneyStamp.create(passportSession, "ORIGIN_GATE"),
-				JourneyStamp.create(passportSession, "MATERIAL_LOUNGE"),
-				JourneyStamp.create(passportSession, "MOVEMENT_DECK"),
-				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM"),
-				JourneyStamp.create(passportSession, "PRODUCT_TAGGING")
+				stamp(passportSession, "ORIGIN_GATE"),
+				stamp(passportSession, "MATERIAL_LOUNGE"),
+				stamp(passportSession, "MOVEMENT_DECK"),
+				stamp(passportSession, "CITY_MOOD_ROOM")
 		));
 		return passportSession;
 	}
@@ -294,13 +309,32 @@ class StyleFlowIntegrationTest {
 		return passportSessionRepository.findById(passportSession.getId()).orElseThrow();
 	}
 
+	private PassportSession saveExploringSession() {
+		PassportCard card = savePassportCard();
+		return passportSessionRepository.saveAndFlush(PassportSession.start(card));
+	}
+
+	private PassportSession saveReadyToBoardSession() {
+		PassportCard card = savePassportCard();
+		return passportSessionRepository.saveAndFlush(PassportSession.readyToBoard(card));
+	}
+
+	private PassportCard savePassportCard() {
+		return passportCardRepository.saveAndFlush(PassportCard.issue("TEST-" + UUID.randomUUID()));
+	}
+
+	private JourneyStamp stamp(PassportSession passportSession, String spotCode) {
+		JourneySpot journeySpot = journeySpotRepository.findByCode(spotCode).orElseThrow();
+		return JourneyStamp.create(passportSession, journeySpot);
+	}
+
 	private StyleAnalysisDecision validAnalysisDecision() {
 		return new StyleAnalysisDecision(
 				new ValidatedStyleAnalysis(
 						CityCode.BERLIN_AFTERDARK_NOMAD,
 						RecommendedProduct.STARK_BACKPACK,
 						StyleMood.AFTERDARK_MOVEMENT,
-						CityBackground.BERLIN_AFTERDARK,
+						CityBackground.BERLIN_AFTER_DARK,
 						"A valid result for analysis attempt regression testing.",
 						92
 				),
@@ -318,5 +352,6 @@ class StyleFlowIntegrationTest {
 		journeyResponseRepository.deleteAllInBatch();
 		productRepository.deleteAllInBatch();
 		passportSessionRepository.deleteAllInBatch();
+		passportCardRepository.deleteAllInBatch();
 	}
 }
