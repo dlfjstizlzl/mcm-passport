@@ -2,8 +2,10 @@ package com.mcm.passport.domain.style;
 
 import com.mcm.passport.domain.journey.entity.JourneyResponse;
 import com.mcm.passport.domain.journey.entity.JourneyStamp;
+import com.mcm.passport.domain.journey.entity.JourneySpot;
 import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
+import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportCard;
 import com.mcm.passport.domain.passport.repository.PassportCardRepository;
@@ -57,6 +59,9 @@ class StyleApiIntegrationTest {
 	private JourneyStampRepository journeyStampRepository;
 
 	@Autowired
+	private JourneySpotRepository journeySpotRepository;
+
+	@Autowired
 	private ProductRepository productRepository;
 
 	@Autowired
@@ -105,7 +110,7 @@ class StyleApiIntegrationTest {
 				.andExpect(jsonPath("$.recommendedProductCode").value(RecommendedProduct.STARK_BACKPACK.name()))
 				.andExpect(jsonPath("$.backgroundCode").value("BERLIN_AFTER_DARK"))
 				.andExpect(jsonPath("$.backgroundName").value("Berlin After Dark"))
-				.andExpect(jsonPath("$.matchScore").value(92))
+				.andExpect(jsonPath("$.matchScore").value(91))
 				.andExpect(jsonPath("$.usedFallback").value(false));
 
 		mockMvc.perform(get("/api/style-spots/{spotCode}/result", STYLE_SPOT_CODE))
@@ -167,11 +172,10 @@ class StyleApiIntegrationTest {
 				)
 		));
 		journeyStampRepository.saveAll(List.of(
-				JourneyStamp.create(passportSession, "ORIGIN_GATE"),
-				JourneyStamp.create(passportSession, "MATERIAL_LOUNGE"),
-				JourneyStamp.create(passportSession, "MOVEMENT_DECK"),
-				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM"),
-				JourneyStamp.create(passportSession, "PRODUCT_TAGGING")
+				stamp(passportSession, "ORIGIN_GATE"),
+				stamp(passportSession, "MATERIAL_LOUNGE"),
+				stamp(passportSession, "MOVEMENT_DECK"),
+				stamp(passportSession, "CITY_MOOD_ROOM")
 		));
 		Product product = productRepository.saveAndFlush(Product.create(
 				RecommendedProduct.STARK_BACKPACK.name(),
@@ -179,6 +183,11 @@ class StyleApiIntegrationTest {
 		));
 		productTagRepository.saveAndFlush(ProductTag.create(passportSession, product));
 		return passportSession;
+	}
+
+	private JourneyStamp stamp(PassportSession passportSession, String spotCode) {
+		JourneySpot journeySpot = journeySpotRepository.findByCode(spotCode).orElseThrow();
+		return JourneyStamp.create(passportSession, journeySpot);
 	}
 
 	private void cleanDatabase() {

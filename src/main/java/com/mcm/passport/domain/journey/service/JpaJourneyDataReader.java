@@ -46,7 +46,7 @@ public class JpaJourneyDataReader implements JourneyDataReader {
 		List<JourneyDataSnapshot.StampSignal> stamps = journeyStampRepository
 				.findAllByPassportSession_IdOrderByIdAsc(passportSessionId)
 				.stream()
-				.map(stamp -> new JourneyDataSnapshot.StampSignal(stamp.getSpotCode()))
+				.map(stamp -> new JourneyDataSnapshot.StampSignal(stamp.getJourneySpot().getCode()))
 				.toList();
 
 		List<JourneyDataSnapshot.ProductSignal> taggedProducts = productTagRepository

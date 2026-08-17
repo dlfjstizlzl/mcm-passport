@@ -8,12 +8,14 @@ import com.mcm.passport.domain.journey.repository.GuideQuestionRepository;
 import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Component
+@Order(0)
 public class JourneyGuideDataInitializer implements ApplicationRunner {
 
 	private final JourneySpotRepository journeySpotRepository;

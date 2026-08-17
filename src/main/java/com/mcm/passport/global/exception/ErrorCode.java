@@ -28,6 +28,7 @@ public enum ErrorCode {
 	PASSPORT_CARD_INACTIVE(HttpStatus.CONFLICT, "비활성화된 Passport Card입니다."),
 	ACTIVE_PASSPORT_SESSION_EXISTS(HttpStatus.CONFLICT, "이미 진행 중인 Passport Session이 존재합니다."),
 	INVALID_SESSION_STATUS(HttpStatus.CONFLICT, "현재 Passport Session 상태에서는 요청을 수행할 수 없습니다."),
+	JOURNEY_STAMP_ALREADY_EXISTS(HttpStatus.CONFLICT, "해당 Journey Spot의 Stamp가 이미 발급되었습니다."),
 	STYLE_SPOT_IN_USE(HttpStatus.CONFLICT, "Style Spot이 이미 사용 중입니다."),
 	DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 생성된 리소스입니다."),
 

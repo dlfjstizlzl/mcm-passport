@@ -10,6 +10,8 @@ public interface GuideQuestionRepository extends JpaRepository<GuideQuestion, Lo
 
 	List<GuideQuestion> findAllByJourneySpot_IdAndActiveTrueOrderBySequenceAsc(Long journeySpotId);
 
+	List<GuideQuestion> findAllByJourneySpot_IdAndRequiredTrueAndActiveTrueOrderBySequenceAsc(Long journeySpotId);
+
 	Optional<GuideQuestion> findByIdAndActiveTrue(Long id);
 
 	Optional<GuideQuestion> findByJourneySpot_IdAndCode(Long journeySpotId, String code);

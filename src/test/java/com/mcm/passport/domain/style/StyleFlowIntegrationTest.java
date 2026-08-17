@@ -2,8 +2,10 @@ package com.mcm.passport.domain.style;
 
 import com.mcm.passport.domain.journey.entity.JourneyResponse;
 import com.mcm.passport.domain.journey.entity.JourneyStamp;
+import com.mcm.passport.domain.journey.entity.JourneySpot;
 import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
+import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
 import com.mcm.passport.domain.passport.entity.PassportCard;
@@ -77,6 +79,9 @@ class StyleFlowIntegrationTest {
 	private JourneyStampRepository journeyStampRepository;
 
 	@Autowired
+	private JourneySpotRepository journeySpotRepository;
+
+	@Autowired
 	private ProductRepository productRepository;
 
 	@Autowired
@@ -119,7 +124,7 @@ class StyleFlowIntegrationTest {
 		assertThat(analyzed.recommendedProductCode()).isEqualTo(RecommendedProduct.STARK_BACKPACK.name());
 		assertThat(analyzed.styleMood()).isEqualTo(StyleMood.AFTERDARK_MOVEMENT.name());
 		assertThat(analyzed.backgroundCode()).isEqualTo(CityBackground.BERLIN_AFTER_DARK.name());
-		assertThat(analyzed.matchScore()).isEqualTo(92);
+		assertThat(analyzed.matchScore()).isEqualTo(91);
 		assertThat(analyzed.usedFallback()).isFalse();
 		assertThat(styleSpotRepository.findById(STYLE_SPOT_CODE).orElseThrow().getStatus())
 				.isEqualTo(StyleSpotStatus.RESULT);
@@ -287,11 +292,10 @@ class StyleFlowIntegrationTest {
 				)
 		));
 		journeyStampRepository.saveAll(List.of(
-				JourneyStamp.create(passportSession, "ORIGIN_GATE"),
-				JourneyStamp.create(passportSession, "MATERIAL_LOUNGE"),
-				JourneyStamp.create(passportSession, "MOVEMENT_DECK"),
-				JourneyStamp.create(passportSession, "CITY_MOOD_ROOM"),
-				JourneyStamp.create(passportSession, "PRODUCT_TAGGING")
+				stamp(passportSession, "ORIGIN_GATE"),
+				stamp(passportSession, "MATERIAL_LOUNGE"),
+				stamp(passportSession, "MOVEMENT_DECK"),
+				stamp(passportSession, "CITY_MOOD_ROOM")
 		));
 		return passportSession;
 	}
@@ -312,6 +316,11 @@ class StyleFlowIntegrationTest {
 
 	private PassportCard savePassportCard() {
 		return passportCardRepository.saveAndFlush(PassportCard.issue("TEST-" + UUID.randomUUID()));
+	}
+
+	private JourneyStamp stamp(PassportSession passportSession, String spotCode) {
+		JourneySpot journeySpot = journeySpotRepository.findByCode(spotCode).orElseThrow();
+		return JourneyStamp.create(passportSession, journeySpot);
 	}
 
 	private StyleAnalysisDecision validAnalysisDecision() {
