@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface JourneySpotRepository extends JpaRepository<JourneySpot, Long> {
 
 	List<JourneySpot> findAllByActiveTrueOrderBySequenceAsc();
+	List<JourneySpot> findAllByRequiredTrueAndActiveTrueOrderBySequenceAsc();
 
 	Optional<JourneySpot> findByIdAndActiveTrue(Long id);
 

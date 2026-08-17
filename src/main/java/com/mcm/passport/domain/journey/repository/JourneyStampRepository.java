@@ -10,4 +10,5 @@ public interface JourneyStampRepository extends JpaRepository<JourneyStamp, Long
 	List<JourneyStamp> findAllByPassportSession_IdOrderByIdAsc(Long passportSessionId);
 
 	boolean existsByPassportSession_IdAndJourneySpot_Id(Long passportSessionId, Long journeySpotId);
+	long countByPassportSession_IdAndJourneySpot_IdIn(Long passportSessionId, List<Long> journeySpotIds);
 }
