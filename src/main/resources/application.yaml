@@ -15,3 +15,15 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+mcm:
+  demo:
+    seed: ${MCM_DEMO_SEED:false}
+  style:
+    analysis:
+      provider: ${MCM_STYLE_ANALYSIS_PROVIDER:mock}
+      openai:
+        api-key: ${OPENAI_API_KEY:}
+        model: ${OPENAI_MODEL:}
+        reasoning-effort: ${MCM_OPENAI_REASONING_EFFORT:none}
+        timeout: ${OPENAI_TIMEOUT:30s}

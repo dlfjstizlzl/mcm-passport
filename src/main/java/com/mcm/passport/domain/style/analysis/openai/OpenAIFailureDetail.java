@@ -1,0 +1,14 @@
+package com.mcm.passport.domain.style.analysis.openai;
+
+/** Allowlisted details that never contain prompts, response content, or exception messages. */
+public enum OpenAIFailureDetail {
+	HTTP_REQUEST_FAILED,
+	SDK_RESPONSE_DESERIALIZATION_FAILED,
+	USAGE_MAPPING_FAILED,
+	RESPONSE_MODEL_UNAVAILABLE,
+	RESPONSE_STATUS_UNAVAILABLE,
+	RESPONSE_INCOMPLETE_MAX_OUTPUT_TOKENS,
+	STRUCTURED_OUTPUT_DESERIALIZATION_FAILED,
+	STRUCTURED_OUTPUT_MISSING,
+	VALIDATION_FAILED
+}
