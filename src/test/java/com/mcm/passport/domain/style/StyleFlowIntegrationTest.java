@@ -6,6 +6,8 @@ import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
+import com.mcm.passport.domain.passport.entity.PassportCard;
+import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
@@ -40,6 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -63,6 +66,9 @@ class StyleFlowIntegrationTest {
 
 	@Autowired
 	private PassportSessionRepository passportSessionRepository;
+
+	@Autowired
+	private PassportCardRepository passportCardRepository;
 
 	@Autowired
 	private JourneyResponseRepository journeyResponseRepository;
@@ -175,7 +181,7 @@ class StyleFlowIntegrationTest {
 
 	@Test
 	void rejectsStyleSpotConnectionBeforeBoardingIsReady() {
-		PassportSession activeSession = passportSessionRepository.saveAndFlush(PassportSession.start());
+		PassportSession activeSession = saveExploringSession();
 
 		assertThatThrownBy(() -> styleSpotService.connect(STYLE_SPOT_CODE, activeSession.getId()))
 				.isInstanceOfSatisfying(BusinessException.class, exception ->
@@ -187,7 +193,7 @@ class StyleFlowIntegrationTest {
 
 	@Test
 	void rejectsAnalysisWhenReadySessionHasNoJourneyData() {
-		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		PassportSession passportSession = saveReadyToBoardSession();
 		styleSpotService.connect(STYLE_SPOT_CODE, passportSession.getId());
 
 		assertThatThrownBy(() -> styleAnalysisService.analyze(STYLE_SPOT_CODE))
@@ -263,7 +269,7 @@ class StyleFlowIntegrationTest {
 	}
 
 	private PassportSession createJourneyDataWithoutProductTag() {
-		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		PassportSession passportSession = saveReadyToBoardSession();
 		journeyResponseRepository.saveAll(List.of(
 				JourneyResponse.create(
 						passportSession,
@@ -294,6 +300,20 @@ class StyleFlowIntegrationTest {
 		return passportSessionRepository.findById(passportSession.getId()).orElseThrow();
 	}
 
+	private PassportSession saveExploringSession() {
+		PassportCard card = savePassportCard();
+		return passportSessionRepository.saveAndFlush(PassportSession.start(card));
+	}
+
+	private PassportSession saveReadyToBoardSession() {
+		PassportCard card = savePassportCard();
+		return passportSessionRepository.saveAndFlush(PassportSession.readyToBoard(card));
+	}
+
+	private PassportCard savePassportCard() {
+		return passportCardRepository.saveAndFlush(PassportCard.issue("TEST-" + UUID.randomUUID()));
+	}
+
 	private StyleAnalysisDecision validAnalysisDecision() {
 		return new StyleAnalysisDecision(
 				new ValidatedStyleAnalysis(
@@ -318,5 +338,6 @@ class StyleFlowIntegrationTest {
 		journeyResponseRepository.deleteAllInBatch();
 		productRepository.deleteAllInBatch();
 		passportSessionRepository.deleteAllInBatch();
+		passportCardRepository.deleteAllInBatch();
 	}
 }

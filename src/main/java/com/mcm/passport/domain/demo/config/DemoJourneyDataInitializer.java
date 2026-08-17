@@ -8,6 +8,8 @@ import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
+import com.mcm.passport.domain.passport.entity.PassportCard;
+import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
@@ -34,6 +36,7 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 	private static final Logger log = LoggerFactory.getLogger(DemoJourneyDataInitializer.class);
 
 	private final DemoJourneySeedRepository demoJourneySeedRepository;
+	private final PassportCardRepository passportCardRepository;
 	private final PassportSessionRepository passportSessionRepository;
 	private final JourneyResponseRepository journeyResponseRepository;
 	private final JourneyStampRepository journeyStampRepository;
@@ -42,6 +45,7 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 
 	public DemoJourneyDataInitializer(
 			DemoJourneySeedRepository demoJourneySeedRepository,
+			PassportCardRepository passportCardRepository,
 			PassportSessionRepository passportSessionRepository,
 			JourneyResponseRepository journeyResponseRepository,
 			JourneyStampRepository journeyStampRepository,
@@ -49,6 +53,7 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 			ProductTagRepository productTagRepository
 	) {
 		this.demoJourneySeedRepository = demoJourneySeedRepository;
+		this.passportCardRepository = passportCardRepository;
 		this.passportSessionRepository = passportSessionRepository;
 		this.journeyResponseRepository = journeyResponseRepository;
 		this.journeyStampRepository = journeyStampRepository;
@@ -81,19 +86,21 @@ public class DemoJourneyDataInitializer implements ApplicationRunner {
 			return passportSession;
 		}
 
-		PassportSession replacement = createDemoSession(includeProductTag);
+		PassportSession replacement = createDemoSession(seed.getSeedKey(), includeProductTag);
 		seed.replacePassportSession(replacement);
 		return replacement;
 	}
 
 	private PassportSession createDemoSeed(String seedKey, boolean includeProductTag) {
-		PassportSession passportSession = createDemoSession(includeProductTag);
+		PassportSession passportSession = createDemoSession(seedKey, includeProductTag);
 		demoJourneySeedRepository.save(DemoJourneySeed.create(seedKey, passportSession));
 		return passportSession;
 	}
 
-	private PassportSession createDemoSession(boolean includeProductTag) {
-		PassportSession passportSession = passportSessionRepository.save(PassportSession.readyToBoard());
+	private PassportSession createDemoSession(String seedKey, boolean includeProductTag) {
+		PassportCard passportCard = passportCardRepository.findByCardUid(seedKey)
+				.orElseGet(() -> passportCardRepository.save(PassportCard.issue(seedKey)));
+		PassportSession passportSession = passportSessionRepository.save(PassportSession.readyToBoard(passportCard));
 		journeyResponseRepository.saveAll(demoResponses(passportSession));
 		journeyStampRepository.saveAll(demoStamps(passportSession));
 

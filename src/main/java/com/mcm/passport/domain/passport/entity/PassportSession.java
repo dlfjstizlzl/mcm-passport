@@ -9,46 +9,66 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @Entity
-@Table(name = "passport_sessions")
+@Table(name = "passport_session")
 public class PassportSession {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "passport_card_id", nullable = false)
+	private PassportCard passportCard;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 32)
 	private PassportSessionStatus status;
 
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private Instant createdAt;
+	@Column(name = "started_at", nullable = false, updatable = false)
+	private Instant startedAt;
 
 	@Column(name = "completed_at")
 	private Instant completedAt;
 
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private Instant createdAt;
+
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt;
+
 	protected PassportSession() {
 	}
 
-	private PassportSession(PassportSessionStatus status) {
-		this.status = status;
-		this.createdAt = Instant.now();
+	private PassportSession(PassportCard passportCard, PassportSessionStatus status) {
+		this.passportCard = Objects.requireNonNull(passportCard, "passportCard must not be null");
+		this.status = Objects.requireNonNull(status, "status must not be null");
+		Instant now = Instant.now();
+		this.startedAt = now;
+		this.createdAt = now;
+		this.updatedAt = now;
 	}
 
-	public static PassportSession start() {
-		return new PassportSession(PassportSessionStatus.ACTIVE);
+	public static PassportSession start(PassportCard passportCard) {
+		return new PassportSession(passportCard, PassportSessionStatus.EXPLORING);
 	}
 
-	public static PassportSession readyToBoard() {
-		return new PassportSession(PassportSessionStatus.READY_TO_BOARD);
+	public static PassportSession readyToBoard(PassportCard passportCard) {
+		return new PassportSession(passportCard, PassportSessionStatus.READY_TO_BOARD);
 	}
 
 	public void markReadyToBoard() {
-		transition(PassportSessionStatus.ACTIVE, PassportSessionStatus.READY_TO_BOARD);
+		transition(PassportSessionStatus.EXPLORING, PassportSessionStatus.READY_TO_BOARD);
 	}
 
 	public void enterStyleSpot() {
@@ -69,14 +89,40 @@ public class PassportSession {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);
 		}
 		this.status = target;
+		this.updatedAt = Instant.now();
+	}
+
+	@PrePersist
+	private void initializeTimestamps() {
+		Instant now = Instant.now();
+		if (startedAt == null) {
+			startedAt = now;
+		}
+		if (createdAt == null) {
+			createdAt = now;
+		}
+		updatedAt = now;
+	}
+
+	@PreUpdate
+	private void updateTimestamp() {
+		updatedAt = Instant.now();
 	}
 
 	public Long getId() {
 		return id;
 	}
 
+	public PassportCard getPassportCard() {
+		return passportCard;
+	}
+
 	public PassportSessionStatus getStatus() {
 		return status;
+	}
+
+	public Instant getStartedAt() {
+		return startedAt;
 	}
 
 	public Instant getCreatedAt() {
@@ -85,5 +131,9 @@ public class PassportSession {
 
 	public Instant getCompletedAt() {
 		return completedAt;
+	}
+
+	public Instant getUpdatedAt() {
+		return updatedAt;
 	}
 }

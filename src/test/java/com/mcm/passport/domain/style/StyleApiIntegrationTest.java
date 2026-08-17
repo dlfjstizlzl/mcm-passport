@@ -5,6 +5,8 @@ import com.mcm.passport.domain.journey.entity.JourneyStamp;
 import com.mcm.passport.domain.journey.repository.JourneyResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneyStampRepository;
 import com.mcm.passport.domain.passport.entity.PassportSession;
+import com.mcm.passport.domain.passport.entity.PassportCard;
+import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,6 +46,9 @@ class StyleApiIntegrationTest {
 
 	@Autowired
 	private PassportSessionRepository passportSessionRepository;
+
+	@Autowired
+	private PassportCardRepository passportCardRepository;
 
 	@Autowired
 	private JourneyResponseRepository journeyResponseRepository;
@@ -137,7 +143,12 @@ class StyleApiIntegrationTest {
 	}
 
 	private PassportSession createJourneyData() {
-		PassportSession passportSession = passportSessionRepository.saveAndFlush(PassportSession.readyToBoard());
+		PassportCard passportCard = passportCardRepository.saveAndFlush(
+				PassportCard.issue("TEST-" + UUID.randomUUID())
+		);
+		PassportSession passportSession = passportSessionRepository.saveAndFlush(
+				PassportSession.readyToBoard(passportCard)
+		);
 		journeyResponseRepository.saveAll(List.of(
 				JourneyResponse.create(
 						passportSession,
@@ -179,5 +190,6 @@ class StyleApiIntegrationTest {
 		journeyResponseRepository.deleteAllInBatch();
 		productRepository.deleteAllInBatch();
 		passportSessionRepository.deleteAllInBatch();
+		passportCardRepository.deleteAllInBatch();
 	}
 }
