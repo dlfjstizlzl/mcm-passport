@@ -4,7 +4,8 @@ import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.entity.PassportSessionStatus;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.domain.product.dto.ProductTagCreateRequest;
-import com.mcm.passport.domain.product.dto.ProductTagResponse;
+import com.mcm.passport.domain.product.dto.ProductTagCreateResponse;
+import com.mcm.passport.domain.product.dto.ProductTagListResponse;
 import com.mcm.passport.domain.product.entity.Product;
 import com.mcm.passport.domain.product.entity.ProductTag;
 import com.mcm.passport.domain.product.repository.ProductRepository;
@@ -34,7 +35,7 @@ public class ProductTagService {
 	}
 
 	@Transactional
-	public ProductTagResponse create(Long passportSessionId, ProductTagCreateRequest request) {
+	public ProductTagCreateResponse create(Long passportSessionId, ProductTagCreateRequest request) {
 		PassportSession passportSession = passportSessionRepository.findByIdForUpdate(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND));
 		if (passportSession.getStatus() != PassportSessionStatus.EXPLORING) {
@@ -48,17 +49,17 @@ public class ProductTagService {
 		}
 
 		ProductTag productTag = productTagRepository.save(ProductTag.create(passportSession, product));
-		return ProductTagResponse.from(productTag);
+		return ProductTagCreateResponse.from(productTag);
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProductTagResponse> getAll(Long passportSessionId) {
+	public List<ProductTagListResponse> getAll(Long passportSessionId) {
 		if (!passportSessionRepository.existsById(passportSessionId)) {
 			throw new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND);
 		}
 		return productTagRepository.findAllByPassportSession_IdOrderByIdAsc(passportSessionId)
 				.stream()
-				.map(ProductTagResponse::from)
+				.map(ProductTagListResponse::from)
 				.toList();
 	}
 }

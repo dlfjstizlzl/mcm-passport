@@ -62,7 +62,9 @@ class BoardingPassApiIntegrationTest {
 				.andExpect(jsonPath("$.issuedAt").isNotEmpty());
 		mockMvc.perform(get(boardingPassEndpoint(), session.getId()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.passportSessionId").value(session.getId()));
+				.andExpect(jsonPath("$.boardingPassId").isNumber())
+				.andExpect(jsonPath("$.passportSessionId").doesNotExist())
+				.andExpect(jsonPath("$.gate").value("STYLE_SPOT"));
 
 		assertThat(passportSessionRepository.findById(session.getId()).orElseThrow().getStatus())
 				.isEqualTo(PassportSessionStatus.READY_TO_BOARD);
@@ -105,12 +107,26 @@ class BoardingPassApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.passportSessionId").value(session.getId()))
 				.andExpect(jsonPath("$.status").value("EXPLORING"))
-				.andExpect(jsonPath("$.journeySpots.length()").value(spots.size()))
-				.andExpect(jsonPath("$.journeySpots[0].journeySpotId").value(completedSpot.getId()))
-				.andExpect(jsonPath("$.journeySpots[0].completed").value(true))
-				.andExpect(jsonPath("$.journeySpots[0].stampedAt").isNotEmpty())
-				.andExpect(jsonPath("$.journeySpots[1].completed").value(false))
-				.andExpect(jsonPath("$.journeySpots[1].stampedAt").doesNotExist());
+				.andExpect(jsonPath("$.spots.length()").value(spots.size()))
+				.andExpect(jsonPath("$.journeySpots").doesNotExist())
+				.andExpect(jsonPath("$.spots[0].id").value(completedSpot.getId()))
+				.andExpect(jsonPath("$.spots[0].journeySpotId").doesNotExist())
+				.andExpect(jsonPath("$.spots[0].description").doesNotExist())
+				.andExpect(jsonPath("$.spots[0].completed").value(true))
+				.andExpect(jsonPath("$.spots[0].stampedAt").isNotEmpty())
+				.andExpect(jsonPath("$.spots[1].completed").value(false))
+				.andExpect(jsonPath("$.spots[1].stampedAt").doesNotExist());
+	}
+
+	@Test
+	void rejectsDuplicateBoardingPassBeforeSessionStatusValidation() throws Exception {
+		PassportSession session = saveExploringSession();
+		stampAllRequiredSpots(session);
+		mockMvc.perform(post(boardingPassEndpoint(), session.getId())).andExpect(status().isCreated());
+
+		mockMvc.perform(post(boardingPassEndpoint(), session.getId()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("BOARDING_PASS_ALREADY_EXISTS"));
 	}
 
 	private void stampAllRequiredSpots(PassportSession session) {

@@ -6,7 +6,7 @@ import java.util.List;
 public record JourneyProgressResponse(
 		Long passportSessionId,
 		String status,
-		List<JourneyProgressSpotResponse> journeySpots
+		List<JourneyProgressSpotResponse> spots
 ) {
 	public static JourneyProgressResponse of(PassportSession session, List<JourneyProgressSpotResponse> spots) {
 		return new JourneyProgressResponse(session.getId(), session.getStatus().name(), spots);

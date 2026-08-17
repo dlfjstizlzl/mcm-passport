@@ -1,7 +1,8 @@
 package com.mcm.passport.domain.product.controller;
 
 import com.mcm.passport.domain.product.dto.ProductTagCreateRequest;
-import com.mcm.passport.domain.product.dto.ProductTagResponse;
+import com.mcm.passport.domain.product.dto.ProductTagCreateResponse;
+import com.mcm.passport.domain.product.dto.ProductTagListResponse;
 import com.mcm.passport.domain.product.service.ProductTagService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class ProductTagController {
 	}
 
 	@PostMapping
-	public ResponseEntity<ProductTagResponse> create(
+	public ResponseEntity<ProductTagCreateResponse> create(
 			@PathVariable Long passportSessionId,
 			@Valid @RequestBody ProductTagCreateRequest request
 	) {
@@ -34,7 +35,7 @@ public class ProductTagController {
 	}
 
 	@GetMapping
-	public ResponseEntity<List<ProductTagResponse>> getAll(@PathVariable Long passportSessionId) {
+	public ResponseEntity<List<ProductTagListResponse>> getAll(@PathVariable Long passportSessionId) {
 		return ResponseEntity.ok(productTagService.getAll(passportSessionId));
 	}
 }

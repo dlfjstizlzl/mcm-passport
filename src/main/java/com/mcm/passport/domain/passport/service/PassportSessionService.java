@@ -1,6 +1,7 @@
 package com.mcm.passport.domain.passport.service;
 
 import com.mcm.passport.domain.passport.dto.PassportSessionCreateRequest;
+import com.mcm.passport.domain.passport.dto.PassportSessionCreateResponse;
 import com.mcm.passport.domain.passport.dto.PassportSessionResponse;
 import com.mcm.passport.domain.passport.entity.PassportCard;
 import com.mcm.passport.domain.passport.entity.PassportSession;
@@ -27,7 +28,7 @@ public class PassportSessionService {
 	}
 
 	@Transactional
-	public PassportSessionResponse create(PassportSessionCreateRequest request) {
+	public PassportSessionCreateResponse create(PassportSessionCreateRequest request) {
 		PassportCard passportCard = passportCardRepository.findByCardUidForUpdate(request.cardUid().trim())
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_CARD_NOT_FOUND));
 
@@ -42,7 +43,7 @@ public class PassportSessionService {
 		}
 
 		PassportSession passportSession = passportSessionRepository.save(PassportSession.start(passportCard));
-		return PassportSessionResponse.from(passportSession);
+		return PassportSessionCreateResponse.from(passportSession);
 	}
 
 	@Transactional(readOnly = true)

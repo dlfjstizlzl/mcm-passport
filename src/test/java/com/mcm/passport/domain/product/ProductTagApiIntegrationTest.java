@@ -83,12 +83,16 @@ class ProductTagApiIntegrationTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.productTagId").isNumber())
 				.andExpect(jsonPath("$.product.id").value(product.getId()))
+				.andExpect(jsonPath("$.product.recommendable").doesNotExist())
 				.andExpect(jsonPath("$.taggedAt").isNotEmpty());
 
 		mockMvc.perform(get(endpoint(), session.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].product.id").value(product.getId()));
+				.andExpect(jsonPath("$[0].productId").value(product.getId()))
+				.andExpect(jsonPath("$[0].name").value("Stark Backpack"))
+				.andExpect(jsonPath("$[0].productTagId").doesNotExist())
+				.andExpect(jsonPath("$[0].product").doesNotExist());
 		assertThat(productTagRepository.count()).isEqualTo(1);
 	}
 

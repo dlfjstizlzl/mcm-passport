@@ -1,6 +1,7 @@
 package com.mcm.passport.domain.passport.controller;
 
 import com.mcm.passport.domain.passport.dto.PassportSessionCreateRequest;
+import com.mcm.passport.domain.passport.dto.PassportSessionCreateResponse;
 import com.mcm.passport.domain.passport.dto.PassportSessionResponse;
 import com.mcm.passport.domain.passport.service.PassportSessionService;
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class PassportSessionController {
 	}
 
 	@PostMapping
-	public ResponseEntity<PassportSessionResponse> create(
+	public ResponseEntity<PassportSessionCreateResponse> create(
 			@Valid @RequestBody PassportSessionCreateRequest request
 	) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(passportSessionService.create(request));

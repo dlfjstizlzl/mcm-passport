@@ -1,5 +1,6 @@
 package com.mcm.passport.domain.boarding.service;
 
+import com.mcm.passport.domain.boarding.dto.BoardingPassIssueResponse;
 import com.mcm.passport.domain.boarding.dto.BoardingPassResponse;
 import com.mcm.passport.domain.boarding.entity.BoardingPass;
 import com.mcm.passport.domain.boarding.repository.BoardingPassRepository;
@@ -33,9 +34,12 @@ public class BoardingPassService {
 	}
 
 	@Transactional
-	public BoardingPassResponse issue(Long passportSessionId) {
+	public BoardingPassIssueResponse issue(Long passportSessionId) {
 		PassportSession session = passportSessionRepository.findByIdForUpdate(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND));
+		if (boardingPassRepository.existsByPassportSession_Id(passportSessionId)) {
+			throw new BusinessException(ErrorCode.BOARDING_PASS_ALREADY_EXISTS);
+		}
 		if (session.getStatus() != PassportSessionStatus.EXPLORING) {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);
 		}
@@ -44,12 +48,9 @@ public class BoardingPassService {
 		long stampedCount = requiredSpotIds.isEmpty() ? 0
 				: journeyStampRepository.countByPassportSession_IdAndJourneySpot_IdIn(passportSessionId, requiredSpotIds);
 		if (stampedCount != requiredSpotIds.size()) throw new BusinessException(ErrorCode.JOURNEY_NOT_COMPLETED);
-		if (boardingPassRepository.existsByPassportSession_Id(passportSessionId)) {
-			throw new BusinessException(ErrorCode.BOARDING_PASS_ALREADY_EXISTS);
-		}
 		BoardingPass boardingPass = boardingPassRepository.save(BoardingPass.issue(session, DEFAULT_GATE));
 		session.markReadyToBoard();
-		return BoardingPassResponse.from(boardingPass);
+		return BoardingPassIssueResponse.from(boardingPass);
 	}
 
 	@Transactional(readOnly = true)

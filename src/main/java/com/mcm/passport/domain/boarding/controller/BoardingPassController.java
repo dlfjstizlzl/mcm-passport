@@ -1,5 +1,6 @@
 package com.mcm.passport.domain.boarding.controller;
 
+import com.mcm.passport.domain.boarding.dto.BoardingPassIssueResponse;
 import com.mcm.passport.domain.boarding.dto.BoardingPassResponse;
 import com.mcm.passport.domain.boarding.service.BoardingPassService;
 import org.springframework.http.*;
@@ -12,7 +13,7 @@ public class BoardingPassController {
 	public BoardingPassController(BoardingPassService boardingPassService) { this.boardingPassService = boardingPassService; }
 
 	@PostMapping
-	public ResponseEntity<BoardingPassResponse> issue(@PathVariable Long passportSessionId) {
+	public ResponseEntity<BoardingPassIssueResponse> issue(@PathVariable Long passportSessionId) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(boardingPassService.issue(passportSessionId));
 	}
 

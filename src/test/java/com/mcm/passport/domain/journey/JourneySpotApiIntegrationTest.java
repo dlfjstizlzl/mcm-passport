@@ -64,6 +64,9 @@ class JourneySpotApiIntegrationTest {
 		mockMvc.perform(get("/api/journey-spots/{journeySpotId}", cityMoodRoom.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value("CITY_MOOD_ROOM"))
+				.andExpect(jsonPath("$.description").doesNotExist())
+				.andExpect(jsonPath("$.sequence").doesNotExist())
+				.andExpect(jsonPath("$.required").doesNotExist())
 				.andExpect(jsonPath("$.questions.length()").value(1))
 				.andExpect(jsonPath("$.questions[0].code").value("CITY_MOOD_SIGNAL"))
 				.andExpect(jsonPath("$.questions[0].options.length()").value(6));

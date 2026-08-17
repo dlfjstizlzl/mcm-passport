@@ -10,9 +10,6 @@ public record JourneySpotDetailResponse(
 		Long id,
 		String code,
 		String name,
-		String description,
-		int sequence,
-		boolean required,
 		List<QuestionResponse> questions
 ) {
 
@@ -21,9 +18,6 @@ public record JourneySpotDetailResponse(
 				journeySpot.getId(),
 				journeySpot.getCode(),
 				journeySpot.getName(),
-				journeySpot.getDescription(),
-				journeySpot.getSequence(),
-				journeySpot.isRequired(),
 				List.copyOf(questions)
 		);
 	}
