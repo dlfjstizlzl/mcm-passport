@@ -132,7 +132,7 @@ BE1 Repository를 Style 계층에서 직접 조합하지 않고 `JpaJourneyDataR
   "recommendedProductName": "Stark Backpack",
   "styleMood": "AFTERDARK_MOVEMENT",
   "styleMoodName": "Afterdark / Movement",
-  "backgroundCode": "BERLIN_AFTERDARK",
+  "backgroundCode": "BERLIN_AFTER_DARK",
   "backgroundAssetKey": "berlin-afterdark",
   "description": "오늘의 반응은 밤의 베를린처럼 자유로운 움직임과 선명한 존재감이 어우러지는 장면을 제안합니다.",
   "matchScore": 92,
@@ -178,7 +178,7 @@ BE1 Repository를 Style 계층에서 직접 조합하지 않고 `JpaJourneyDataR
   "recommendedProductName": "Stark Backpack",
   "styleMood": "AFTERDARK_MOVEMENT",
   "styleMoodName": "Afterdark / Movement",
-  "backgroundCode": "BERLIN_AFTERDARK",
+  "backgroundCode": "BERLIN_AFTER_DARK",
   "backgroundAssetKey": "berlin-afterdark",
   "journeyStamps": [
     "ORIGIN_GATE",
