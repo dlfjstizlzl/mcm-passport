@@ -97,7 +97,7 @@ class ProductTagApiIntegrationTest {
 	}
 
 	@Test
-	void rejectsDuplicateTag() throws Exception {
+	void acceptsRepeatedTagWithoutCreatingDuplicateData() throws Exception {
 		PassportSession session = saveExploringSession();
 		Product product = saveProduct();
 		String body = "{\"productId\":" + product.getId() + "}";
@@ -105,8 +105,8 @@ class ProductTagApiIntegrationTest {
 		mockMvc.perform(post(endpoint(), session.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isCreated());
 		mockMvc.perform(post(endpoint(), session.getId()).contentType(MediaType.APPLICATION_JSON).content(body))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("PRODUCT_ALREADY_TAGGED"));
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.product.id").value(product.getId()));
 
 		assertThat(productTagRepository.count()).isEqualTo(1);
 	}

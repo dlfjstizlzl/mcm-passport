@@ -5,11 +5,12 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductTagRepository extends JpaRepository<ProductTag, Long> {
 
 	@EntityGraph(attributePaths = "product")
 	List<ProductTag> findAllByPassportSession_IdOrderByIdAsc(Long passportSessionId);
 
-	boolean existsByPassportSession_IdAndProduct_Id(Long passportSessionId, Long productId);
+	Optional<ProductTag> findByPassportSession_IdAndProduct_Id(Long passportSessionId, Long productId);
 }

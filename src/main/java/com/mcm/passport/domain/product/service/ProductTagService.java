@@ -44,12 +44,11 @@ public class ProductTagService {
 
 		Product product = productRepository.findByIdAndActiveTrue(request.productId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
-		if (productTagRepository.existsByPassportSession_IdAndProduct_Id(passportSessionId, product.getId())) {
-			throw new BusinessException(ErrorCode.PRODUCT_ALREADY_TAGGED);
-		}
-
-		ProductTag productTag = productTagRepository.save(ProductTag.create(passportSession, product));
-		return ProductTagCreateResponse.from(productTag);
+		return productTagRepository.findByPassportSession_IdAndProduct_Id(passportSessionId, product.getId())
+				.map(ProductTagCreateResponse::from)
+				.orElseGet(() -> ProductTagCreateResponse.from(
+						productTagRepository.save(ProductTag.create(passportSession, product))
+				));
 	}
 
 	@Transactional(readOnly = true)
