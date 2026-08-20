@@ -24,6 +24,8 @@ springdoc:
 mcm:
   cors:
     allowed-origins: ${MCM_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,https://hackathonfront.devdlfjstizlzl.xyz}
+  passport:
+    allow-virtual-cards: ${MCM_PASSPORT_ALLOW_VIRTUAL_CARDS:true}
   reference-data:
     enabled: ${MCM_REFERENCE_DATA_ENABLED:true}
   style:
