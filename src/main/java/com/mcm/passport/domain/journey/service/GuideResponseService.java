@@ -50,10 +50,15 @@ public class GuideResponseService {
 
 		GuideQuestion guideQuestion = guideQuestionRepository.findByIdAndActiveTrue(questionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.GUIDE_QUESTION_NOT_FOUND));
-		GuideOption guideOption = guideOptionRepository.findByIdAndActiveTrue(request.optionId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.GUIDE_OPTION_NOT_FOUND));
+		if (request.optionId() == null && (request.answerText() == null || request.answerText().isBlank())) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		GuideOption guideOption = request.optionId() == null
+				? null
+				: guideOptionRepository.findByIdAndActiveTrue(request.optionId())
+						.orElseThrow(() -> new BusinessException(ErrorCode.GUIDE_OPTION_NOT_FOUND));
 
-		if (!guideOption.getGuideQuestion().getId().equals(guideQuestion.getId())) {
+		if (guideOption != null && !guideOption.getGuideQuestion().getId().equals(guideQuestion.getId())) {
 			throw new BusinessException(ErrorCode.INVALID_GUIDE_OPTION);
 		}
 

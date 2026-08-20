@@ -569,9 +569,9 @@ components:
         sequence: {type: integer}
     GuideResponseRequest:
       type: object
-      required: [optionId]
+      description: optionId 또는 answerText 중 하나는 필수입니다.
       properties:
-        optionId: {type: integer, format: int64}
+        optionId: {type: [integer, 'null'], format: int64}
         answerText: {type: [string, 'null'], maxLength: 500}
     GuideResponseResponse:
       type: object
@@ -579,7 +579,7 @@ components:
       properties:
         guideResponseId: {type: integer, format: int64}
         questionId: {type: integer, format: int64}
-        optionId: {type: integer, format: int64}
+        optionId: {type: [integer, 'null'], format: int64}
         answerText: {type: [string, 'null']}
         answeredAt: {type: string, format: date-time}
     JourneyStampResponse:

@@ -35,14 +35,19 @@ public class JpaJourneyDataReader implements JourneyDataReader {
 		List<JourneyDataSnapshot.ResponseSignal> responses = guideResponseRepository
 				.findAllForStyleAnalysis(passportSessionId)
 				.stream()
-				.map(response -> new JourneyDataSnapshot.ResponseSignal(
-						response.getGuideQuestion().getJourneySpot().getCode(),
-						response.getGuideQuestion().getCode(),
-						response.getGuideOption().getCode(),
-						response.getAnswerText() == null
-								? response.getGuideOption().getLabel()
-								: response.getGuideOption().getLabel() + " / 직접 답변: " + response.getAnswerText()
-				))
+				.map(response -> {
+					var option = response.getGuideOption();
+					return new JourneyDataSnapshot.ResponseSignal(
+							response.getGuideQuestion().getJourneySpot().getCode(),
+							response.getGuideQuestion().getCode(),
+							option == null ? "CUSTOM" : option.getCode(),
+							option == null
+									? response.getAnswerText()
+									: response.getAnswerText() == null
+											? option.getLabel()
+											: option.getLabel() + " / 직접 답변: " + response.getAnswerText()
+					);
+				})
 				.toList();
 
 		List<JourneyDataSnapshot.StampSignal> stamps = journeyStampRepository

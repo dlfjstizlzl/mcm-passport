@@ -16,7 +16,7 @@ public record GuideResponseResponse(
 		return new GuideResponseResponse(
 				guideResponse.getId(),
 				guideResponse.getGuideQuestion().getId(),
-				guideResponse.getGuideOption().getId(),
+				guideResponse.getGuideOption() == null ? null : guideResponse.getGuideOption().getId(),
 				guideResponse.getAnswerText(),
 				guideResponse.getAnsweredAt()
 		);

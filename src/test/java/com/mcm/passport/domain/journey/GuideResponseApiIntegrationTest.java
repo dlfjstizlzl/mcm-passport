@@ -2,6 +2,7 @@ package com.mcm.passport.domain.journey;
 
 import com.mcm.passport.domain.journey.entity.GuideOption;
 import com.mcm.passport.domain.journey.entity.GuideQuestion;
+import com.mcm.passport.domain.journey.entity.GuideResponse;
 import com.mcm.passport.domain.journey.entity.JourneySpot;
 import com.mcm.passport.domain.journey.repository.GuideOptionRepository;
 import com.mcm.passport.domain.journey.repository.GuideQuestionRepository;
@@ -106,6 +107,23 @@ class GuideResponseApiIntegrationTest {
 	}
 
 	@Test
+	void createsResponseWithCustomAnswerOnly() throws Exception {
+		PassportSession session = saveExploringSession();
+		GuideQuestion question = question("ORIGIN_GATE", "JOURNEY_START_MOOD");
+
+		mockMvc.perform(put(endpoint(), session.getId(), question.getId())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"answerText\":\"도시의 밤처럼 선명한 분위기\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.optionId").isEmpty())
+				.andExpect(jsonPath("$.answerText").value("도시의 밤처럼 선명한 분위기"));
+
+		GuideResponse saved = guideResponseRepository.findAll().getFirst();
+		assertThat(saved.getGuideOption()).isNull();
+		assertThat(journeyDataReader.read(session.getId()).responses().getFirst().answerCode()).isEqualTo("CUSTOM");
+	}
+
+	@Test
 	void rejectsOptionBelongingToDifferentQuestion() throws Exception {
 		PassportSession session = saveExploringSession();
 		GuideQuestion question = question("ORIGIN_GATE", "JOURNEY_START_MOOD");
@@ -160,7 +178,7 @@ class GuideResponseApiIntegrationTest {
 	}
 
 	@Test
-	void validatesRequiredOptionId() throws Exception {
+	void rejectsResponseWithoutOptionOrCustomAnswer() throws Exception {
 		PassportSession session = saveExploringSession();
 		GuideQuestion question = question("ORIGIN_GATE", "JOURNEY_START_MOOD");
 
@@ -168,8 +186,7 @@ class GuideResponseApiIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-				.andExpect(jsonPath("$.errors[0].field").value("optionId"));
+				.andExpect(jsonPath("$.code").value("INVALID_INPUT"));
 	}
 
 	private PassportSession saveExploringSession() {

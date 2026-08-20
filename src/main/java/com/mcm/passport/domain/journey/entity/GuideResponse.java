@@ -37,8 +37,8 @@ public class GuideResponse {
 	@JoinColumn(name = "guide_question_id", nullable = false)
 	private GuideQuestion guideQuestion;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "guide_option_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "guide_option_id")
 	private GuideOption guideOption;
 
 	@Column(name = "answer_text", length = 500)
@@ -58,8 +58,8 @@ public class GuideResponse {
 	) {
 		this.passportSession = Objects.requireNonNull(passportSession, "passportSession must not be null");
 		this.guideQuestion = Objects.requireNonNull(guideQuestion, "guideQuestion must not be null");
-		this.guideOption = Objects.requireNonNull(guideOption, "guideOption must not be null");
-		this.answerText = normalizeAnswerText(answerText);
+		this.guideOption = guideOption;
+		this.answerText = requireOptionOrAnswer(guideOption, answerText);
 		this.answeredAt = Instant.now();
 	}
 
@@ -85,9 +85,17 @@ public class GuideResponse {
 	}
 
 	public void changeAnswer(GuideOption guideOption, String answerText) {
-		this.guideOption = Objects.requireNonNull(guideOption, "guideOption must not be null");
-		this.answerText = normalizeAnswerText(answerText);
+		this.guideOption = guideOption;
+		this.answerText = requireOptionOrAnswer(guideOption, answerText);
 		this.answeredAt = Instant.now();
+	}
+
+	private static String requireOptionOrAnswer(GuideOption guideOption, String answerText) {
+		String normalizedAnswer = normalizeAnswerText(answerText);
+		if (guideOption == null && normalizedAnswer == null) {
+			throw new IllegalArgumentException("guideOption or answerText must be provided");
+		}
+		return normalizedAnswer;
 	}
 
 	private static String normalizeAnswerText(String answerText) {
