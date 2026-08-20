@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
 		"mcm.style.analysis.provider=mock",
+		"mcm.passport.allow-virtual-cards=true",
 		"spring.datasource.url=jdbc:h2:mem:passport-session-api;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
 })
 class PassportSessionApiIntegrationTest {
@@ -77,6 +78,15 @@ class PassportSessionApiIntegrationTest {
 						.content(request))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACTIVE_PASSPORT_SESSION_EXISTS"));
+	}
+
+	@Test
+	void createsIndependentVirtualBrowserCardSession() throws Exception {
+		mockMvc.perform(post("/api/passport-sessions")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"cardUid\":\"MCM-WEB-BROWSER-A\"}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.status").value("EXPLORING"));
 	}
 
 	@Test

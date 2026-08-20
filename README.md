@@ -15,7 +15,15 @@
 3. `.\gradlew.bat bootRun`으로 실행합니다.
 
 설정은 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JPA_DDL_AUTO`, `SERVER_PORT` 환경변수로 덮어쓸 수 있습니다.
+프론트엔드 origin은 기본적으로 `http://localhost:3000`, `http://127.0.0.1:3000`을 허용하며
+배포 환경에서는 `MCM_CORS_ALLOWED_ORIGINS`에 쉼표로 구분한 origin을 지정합니다.
 테스트는 로컬 MySQL과 무관한 H2를 사용하며 `.\gradlew.bat test`로 실행합니다.
+
+MySQL 없이 MVP를 바로 시연할 때는 메모리 H2를 사용하는 local profile로 실행합니다.
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+```
 
 ## 패키지 구조
 

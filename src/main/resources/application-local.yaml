@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:passport;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+mcm:
+  cors:
+    allowed-origins: http://localhost:3000,http://127.0.0.1:3000,https://*.trycloudflare.com
+  passport:
+    allow-virtual-cards: true

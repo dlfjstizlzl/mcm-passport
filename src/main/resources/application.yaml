@@ -22,6 +22,8 @@ springdoc:
     disable-swagger-default-url: true
 
 mcm:
+  cors:
+    allowed-origins: ${MCM_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   reference-data:
     enabled: ${MCM_REFERENCE_DATA_ENABLED:true}
   style:

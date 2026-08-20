@@ -10,14 +10,20 @@ import com.mcm.passport.domain.passport.repository.PassportCardRepository;
 import com.mcm.passport.domain.passport.repository.PassportSessionRepository;
 import com.mcm.passport.global.exception.BusinessException;
 import com.mcm.passport.global.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PassportSessionService {
 
+	private static final String VIRTUAL_CARD_PREFIX = "MCM-WEB-";
+
 	private final PassportCardRepository passportCardRepository;
 	private final PassportSessionRepository passportSessionRepository;
+
+	@Value("${mcm.passport.allow-virtual-cards:false}")
+	private boolean allowVirtualCards;
 
 	public PassportSessionService(
 			PassportCardRepository passportCardRepository,
@@ -29,8 +35,9 @@ public class PassportSessionService {
 
 	@Transactional
 	public PassportSessionCreateResponse create(PassportSessionCreateRequest request) {
-		PassportCard passportCard = passportCardRepository.findByCardUidForUpdate(request.cardUid().trim())
-				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_CARD_NOT_FOUND));
+		String cardUid = request.cardUid().trim();
+		PassportCard passportCard = passportCardRepository.findByCardUidForUpdate(cardUid)
+				.orElseGet(() -> issueVirtualCard(cardUid));
 
 		if (!passportCard.isActive()) {
 			throw new BusinessException(ErrorCode.PASSPORT_CARD_INACTIVE);
@@ -44,6 +51,13 @@ public class PassportSessionService {
 
 		PassportSession passportSession = passportSessionRepository.save(PassportSession.start(passportCard));
 		return PassportSessionCreateResponse.from(passportSession);
+	}
+
+	private PassportCard issueVirtualCard(String cardUid) {
+		if (!allowVirtualCards || !cardUid.startsWith(VIRTUAL_CARD_PREFIX)) {
+			throw new BusinessException(ErrorCode.PASSPORT_CARD_NOT_FOUND);
+		}
+		return passportCardRepository.save(PassportCard.issue(cardUid));
 	}
 
 	@Transactional(readOnly = true)
