@@ -43,7 +43,13 @@ public class StyleSpotService {
 			if (Objects.equals(activeSession.getPassportSession().getId(), passportSessionId)) {
 				return StyleSpotSessionResponse.from(activeSession);
 			}
-			throw new BusinessException(ErrorCode.STYLE_SPOT_IN_USE);
+			if (styleSpot.getStatus() != StyleSpotStatus.RESULT) {
+				throw new BusinessException(ErrorCode.STYLE_SPOT_IN_USE);
+			}
+			// A displayed result belongs to a finished interaction. Release it automatically
+			// so the next visitor can use the physical Style Spot without a manual reset.
+			resetActiveConnection(styleSpot, activeSession);
+			styleSpotSessionRepository.flush();
 		}
 
 		PassportSession passportSession = passportSessionRepository.findByIdForUpdate(passportSessionId)

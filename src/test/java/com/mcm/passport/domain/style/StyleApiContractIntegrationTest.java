@@ -90,7 +90,7 @@ class StyleApiContractIntegrationTest {
 	}
 
 	@Test
-	void connectIsIdempotentForItsOwnerAndRejectsAnotherPassport() throws Exception {
+	void connectIsIdempotentForItsOwnerAndHandsFinishedSpotToNextPassport() throws Exception {
 		PassportSession owner = fixture.readyToBoardWithJourney(false);
 		PassportSession competitor = fixture.readyToBoardWithJourney(false);
 
@@ -118,11 +118,16 @@ class StyleApiContractIntegrationTest {
 		mockMvc.perform(post("/api/style-spots/{styleSpotId}/connect", STYLE_SPOT_CODE)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(connectBody(competitor)))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("STYLE_SPOT_IN_USE"))
-				.andExpect(jsonPath("$.errors").isEmpty());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.passportSessionId").value(competitor.getId()))
+				.andExpect(jsonPath("$.status").value("RESULT"));
+		assertThat(styleSpotSessionRepository.findById(connectionId).orElseThrow().isActive()).isFalse();
+		assertThat(styleSpotSessionRepository.findActiveByStyleSpotCode(STYLE_SPOT_CODE))
+				.hasValueSatisfying(connection ->
+						assertThat(connection.getPassportSession().getId()).isEqualTo(competitor.getId()));
+		assertThat(styleResultRepository.count()).isEqualTo(2);
 		assertThat(passportSessionRepository.findById(competitor.getId()).orElseThrow().getStatus())
-				.isEqualTo(PassportSessionStatus.READY_TO_BOARD);
+				.isEqualTo(PassportSessionStatus.STYLE_SPOT);
 	}
 
 	@Test
