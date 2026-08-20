@@ -37,8 +37,9 @@ public class BoardingPassService {
 	public BoardingPassIssueResponse issue(Long passportSessionId) {
 		PassportSession session = passportSessionRepository.findByIdForUpdate(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND));
-		if (boardingPassRepository.existsByPassportSession_Id(passportSessionId)) {
-			throw new BusinessException(ErrorCode.BOARDING_PASS_ALREADY_EXISTS);
+		BoardingPass existing = boardingPassRepository.findByPassportSession_Id(passportSessionId).orElse(null);
+		if (existing != null) {
+			return BoardingPassIssueResponse.from(existing);
 		}
 		if (session.getStatus() != PassportSessionStatus.EXPLORING) {
 			throw new BusinessException(ErrorCode.INVALID_SESSION_STATUS);

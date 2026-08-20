@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -119,14 +120,17 @@ class BoardingPassApiIntegrationTest {
 	}
 
 	@Test
-	void rejectsDuplicateBoardingPassBeforeSessionStatusValidation() throws Exception {
+	void returnsExistingBoardingPassWhenIssueIsRetried() throws Exception {
 		PassportSession session = saveExploringSession();
 		stampAllRequiredSpots(session);
-		mockMvc.perform(post(boardingPassEndpoint(), session.getId())).andExpect(status().isCreated());
+		String firstResponse = mockMvc.perform(post(boardingPassEndpoint(), session.getId()))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
 
 		mockMvc.perform(post(boardingPassEndpoint(), session.getId()))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("BOARDING_PASS_ALREADY_EXISTS"));
+				.andExpect(status().isCreated())
+				.andExpect(content().json(firstResponse));
+		assertThat(boardingPassRepository.count()).isEqualTo(1);
 	}
 
 	private void stampAllRequiredSpots(PassportSession session) {

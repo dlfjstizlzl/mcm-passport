@@ -201,7 +201,7 @@ paths:
       operationId: issueBoardingPass
       responses:
         '201':
-          description: 발급 성공
+          description: 발급 성공. 이미 발급된 경우 기존 Boarding Pass를 반환합니다.
           content:
             application/json:
               schema:
