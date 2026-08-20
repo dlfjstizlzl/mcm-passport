@@ -29,21 +29,38 @@ class ReferenceDataInitializerTest {
 		initializer.run(new DefaultApplicationArguments(new String[0]));
 
 		var card = passportCardRepository.findByCardUid(ReferenceDataInitializer.TEST_CARD_UID).orElseThrow();
-		var product = productRepository.findFirstByName(ReferenceDataInitializer.TEST_PRODUCT_NAME).orElseThrow();
+		var starkBackpack = productRepository.findFirstByName(ReferenceDataInitializer.TEST_PRODUCT_NAME).orElseThrow();
+		var arenCrossbody = productRepository.findFirstByName(ReferenceDataInitializer.SECOND_TEST_PRODUCT_NAME).orElseThrow();
+		var diamantShoulderBag = productRepository.findFirstByName(ReferenceDataInitializer.THIRD_TEST_PRODUCT_NAME).orElseThrow();
 
 		assertThat(card.isActive()).isTrue();
-		assertThat(product.getCategory()).isEqualTo("BACKPACK");
-		assertThat(product.getColor()).isEqualTo("BLACK");
-		assertThat(product.getMaterial()).isEqualTo("VISETOS");
-		assertThat(product.getSilhouette()).isEqualTo("STRUCTURED");
-		assertThat(product.getImageUrl()).isEqualTo("https://example.com/stark.jpg");
-		assertThat(product.isRecommendable()).isTrue();
-		assertThat(product.isActive()).isTrue();
+		assertThat(starkBackpack.getCategory()).isEqualTo("BACKPACK");
+		assertThat(starkBackpack.getDescription()).isEqualTo(ReferenceDataInitializer.TEST_PRODUCT_DESCRIPTION);
+		assertThat(starkBackpack.getColor()).isEqualTo("BLACK");
+		assertThat(starkBackpack.getMaterial()).isEqualTo("VISETOS");
+		assertThat(starkBackpack.getSilhouette()).isEqualTo("STRUCTURED");
+		assertThat(starkBackpack.getImageUrl()).isEqualTo(
+				"https://images.mcmworldwide.com/i/mcmworldwide/MMKEAVE12BK001_01/stark-black-m?$w1000$&fmt=auto&qlt=default"
+		);
+		assertThat(starkBackpack.isRecommendable()).isTrue();
+		assertThat(starkBackpack.isActive()).isTrue();
+		assertThat(arenCrossbody.getDescription()).isEqualTo(ReferenceDataInitializer.SECOND_TEST_PRODUCT_DESCRIPTION);
+		assertThat(arenCrossbody.getImageUrl()).isEqualTo(
+				"https://images.mcmworldwide.com/i/mcmworldwide/MMRFSTA05CO001_01?$pdp-large$"
+		);
+		assertThat(diamantShoulderBag.getCategory()).isEqualTo("SHOULDER_BAG");
+		assertThat(diamantShoulderBag.getDescription()).isEqualTo(ReferenceDataInitializer.THIRD_TEST_PRODUCT_DESCRIPTION);
+		assertThat(diamantShoulderBag.getMaterial()).isEqualTo("CALF_LEATHER");
+		assertThat(diamantShoulderBag.getSilhouette()).isEqualTo("GEOMETRIC_HOBO");
 		assertThat(passportCardRepository.findAll().stream()
 				.filter(candidate -> candidate.getCardUid().equals(ReferenceDataInitializer.TEST_CARD_UID)))
 				.hasSize(1);
-		assertThat(productRepository.findAll().stream()
-				.filter(candidate -> candidate.getName().equals(ReferenceDataInitializer.TEST_PRODUCT_NAME)))
-				.hasSize(1);
+		assertThat(productRepository.findAllByActiveTrueOrderByIdAsc())
+				.extracting(product -> product.getName())
+				.containsExactlyInAnyOrder(
+						ReferenceDataInitializer.TEST_PRODUCT_NAME,
+						ReferenceDataInitializer.SECOND_TEST_PRODUCT_NAME,
+						ReferenceDataInitializer.THIRD_TEST_PRODUCT_NAME
+				);
 	}
 }

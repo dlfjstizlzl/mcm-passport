@@ -125,6 +125,25 @@ public class Product {
 		this.description = normalizeNullable(description);
 	}
 
+	public void updateCatalogData(
+			String category,
+			String description,
+			String color,
+			String material,
+			String silhouette,
+			String imageUrl,
+			boolean recommendable
+	) {
+		this.category = requireText(category, "category");
+		this.description = normalizeNullable(description);
+		this.color = normalizeNullable(color);
+		this.material = normalizeNullable(material);
+		this.silhouette = normalizeNullable(silhouette);
+		this.imageUrl = normalizeNullable(imageUrl);
+		this.recommendable = recommendable;
+		this.active = true;
+	}
+
 	public String getColor() {
 		return color;
 	}
