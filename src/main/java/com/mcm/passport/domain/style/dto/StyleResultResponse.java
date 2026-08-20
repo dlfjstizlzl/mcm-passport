@@ -11,6 +11,7 @@ public record StyleResultResponse(
 		String cityCodeName,
 		String recommendedProductCode,
 		String recommendedProductName,
+		String recommendedProductImageUrl,
 		String styleMood,
 		String styleMoodName,
 		String backgroundCode,
@@ -22,7 +23,7 @@ public record StyleResultResponse(
 		Instant createdAt
 ) {
 
-	public static StyleResultResponse from(StyleResult styleResult) {
+	public static StyleResultResponse from(StyleResult styleResult, String recommendedProductImageUrl) {
 		return new StyleResultResponse(
 				styleResult.getId(),
 				styleResult.getPassportSession().getId(),
@@ -30,6 +31,7 @@ public record StyleResultResponse(
 				styleResult.getCityCode().getDisplayName(),
 				styleResult.getRecommendedProduct().name(),
 				styleResult.getRecommendedProduct().getDisplayName(),
+				recommendedProductImageUrl,
 				styleResult.getStyleMood().name(),
 				styleResult.getStyleMood().getDisplayName(),
 				styleResult.getBackground().name(),

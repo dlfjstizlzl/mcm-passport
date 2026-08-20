@@ -24,19 +24,22 @@ public class MyPassportService {
 	private final StyleResultRepository styleResultRepository;
 	private final StylePortraitRepository stylePortraitRepository;
 	private final JourneySouvenirRepository journeySouvenirRepository;
+	private final StyleResultResponseMapper styleResultResponseMapper;
 
 	public MyPassportService(
 			PassportSessionRepository passportSessionRepository,
 			JourneyDataReader journeyDataReader,
 			StyleResultRepository styleResultRepository,
 			StylePortraitRepository stylePortraitRepository,
-			JourneySouvenirRepository journeySouvenirRepository
+			JourneySouvenirRepository journeySouvenirRepository,
+			StyleResultResponseMapper styleResultResponseMapper
 	) {
 		this.passportSessionRepository = passportSessionRepository;
 		this.journeyDataReader = journeyDataReader;
 		this.styleResultRepository = styleResultRepository;
 		this.stylePortraitRepository = stylePortraitRepository;
 		this.journeySouvenirRepository = journeySouvenirRepository;
+		this.styleResultResponseMapper = styleResultResponseMapper;
 	}
 
 	@Transactional(readOnly = true)
@@ -45,7 +48,7 @@ public class MyPassportService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.PASSPORT_SESSION_NOT_FOUND));
 		JourneyDataSnapshot journey = journeyDataReader.read(passportSessionId);
 		StyleResultResponse styleResult = styleResultRepository.findByPassportSessionId(passportSessionId)
-				.map(StyleResultResponse::from)
+				.map(styleResultResponseMapper::from)
 				.orElse(null);
 		StylePortraitResponse portrait = stylePortraitRepository.findByPassportSessionId(passportSessionId)
 				.map(StylePortraitResponse::from)

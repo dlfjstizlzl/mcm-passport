@@ -23,15 +23,18 @@ public class StyleAnalysisTransactionService {
 	private final StyleSpotRepository styleSpotRepository;
 	private final StyleSpotSessionRepository styleSpotSessionRepository;
 	private final StyleResultRepository styleResultRepository;
+	private final StyleResultResponseMapper styleResultResponseMapper;
 
 	public StyleAnalysisTransactionService(
 			StyleSpotRepository styleSpotRepository,
 			StyleSpotSessionRepository styleSpotSessionRepository,
-			StyleResultRepository styleResultRepository
+			StyleResultRepository styleResultRepository,
+			StyleResultResponseMapper styleResultResponseMapper
 	) {
 		this.styleSpotRepository = styleSpotRepository;
 		this.styleSpotSessionRepository = styleSpotSessionRepository;
 		this.styleResultRepository = styleResultRepository;
+		this.styleResultResponseMapper = styleResultResponseMapper;
 	}
 
 	@Transactional
@@ -84,7 +87,7 @@ public class StyleAnalysisTransactionService {
 		styleResultRepository.save(styleResult);
 		styleSpot.finishAnalysis(preparation.analysisAttempt());
 
-		return StyleResultResponse.from(styleResult);
+		return styleResultResponseMapper.from(styleResult);
 	}
 
 	@Transactional
@@ -112,7 +115,7 @@ public class StyleAnalysisTransactionService {
 		StyleResult styleResult = styleResultRepository
 				.findByPassportSessionId(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.STYLE_RESULT_NOT_FOUND));
-		return StyleResultResponse.from(styleResult);
+		return styleResultResponseMapper.from(styleResult);
 	}
 
 	private StyleSpotSession findActiveSession(StyleSpot styleSpot) {

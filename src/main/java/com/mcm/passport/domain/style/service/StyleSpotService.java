@@ -15,11 +15,14 @@ import com.mcm.passport.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 
 @Service
 public class StyleSpotService {
+	private static final Duration CONNECTION_LEASE = Duration.ofMinutes(2);
 
 	private final StyleSpotRepository styleSpotRepository;
 	private final StyleSpotSessionRepository styleSpotSessionRepository;
@@ -43,11 +46,12 @@ public class StyleSpotService {
 			if (Objects.equals(activeSession.getPassportSession().getId(), passportSessionId)) {
 				return StyleSpotSessionResponse.from(activeSession);
 			}
-			if (styleSpot.getStatus() != StyleSpotStatus.RESULT) {
+			boolean stale = activeSession.getConnectedAt()
+					.isBefore(Instant.now().minus(CONNECTION_LEASE));
+			if (styleSpot.getStatus() != StyleSpotStatus.RESULT && !stale) {
 				throw new BusinessException(ErrorCode.STYLE_SPOT_IN_USE);
 			}
-			// A displayed result belongs to a finished interaction. Release it automatically
-			// so the next visitor can use the physical Style Spot without a manual reset.
+			// A displayed result or an abandoned connection no longer owns the physical Style Spot.
 			resetActiveConnection(styleSpot, activeSession);
 			styleSpotSessionRepository.flush();
 		}

@@ -42,6 +42,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.sql.Timestamp;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,6 +77,7 @@ class StyleFlowIntegrationTest {
 	@Autowired private StyleSpotSessionRepository styleSpotSessionRepository;
 	@Autowired private StyleResultRepository styleResultRepository;
 	@Autowired private StylePortraitRepository stylePortraitRepository;
+	@Autowired private JdbcTemplate jdbcTemplate;
 	@Autowired private JourneySouvenirRepository journeySouvenirRepository;
 
 	private IntegratedStyleTestFixture fixture;
@@ -202,6 +207,26 @@ class StyleFlowIntegrationTest {
 				.hasValueSatisfying(connection ->
 						assertThat(connection.getPassportSession().getId()).isEqualTo(first.getId()));
 		assertThat(reload(second).getStatus()).isEqualTo(PassportSessionStatus.READY_TO_BOARD);
+	}
+
+	@Test
+	void releasesAnAbandonedConnectionWhenAnotherSessionConnects() {
+		PassportSession abandonedOwner = fixture.readyToBoardWithJourney(false);
+		PassportSession nextOwner = fixture.readyToBoardWithJourney(false);
+		StyleSpotSessionResponse abandoned = styleSpotService.connectSession(
+				STYLE_SPOT_CODE, abandonedOwner.getId());
+		jdbcTemplate.update(
+				"update style_spot_sessions set connected_at = ? where id = ?",
+				Timestamp.from(Instant.now().minusSeconds(121)),
+				abandoned.id()
+		);
+
+		StyleSpotSessionResponse connected = styleSpotService.connectSession(
+				STYLE_SPOT_CODE, nextOwner.getId());
+
+		assertThat(connected.passportSessionId()).isEqualTo(nextOwner.getId());
+		assertThat(styleSpotSessionRepository.findById(abandoned.id()).orElseThrow().isActive()).isFalse();
+		assertThat(reload(abandonedOwner).getStatus()).isEqualTo(PassportSessionStatus.READY_TO_BOARD);
 	}
 
 	@Test

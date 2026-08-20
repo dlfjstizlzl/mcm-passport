@@ -140,7 +140,7 @@ class OpenApiContractTest {
 		Map<String, Object> styleResult = schema(document, "StyleResultResponse");
 		Set<String> styleResultFields = Set.of(
 				"id", "passportSessionId", "cityCode", "cityCodeName",
-				"recommendedProductCode", "recommendedProductName", "styleMood", "styleMoodName",
+				"recommendedProductCode", "recommendedProductName", "recommendedProductImageUrl", "styleMood", "styleMoodName",
 				"backgroundCode", "backgroundName", "backgroundAssetKey", "description",
 				"matchScore", "usedFallback", "createdAt"
 		);

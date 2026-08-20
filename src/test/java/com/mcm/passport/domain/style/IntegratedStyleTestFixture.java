@@ -76,7 +76,9 @@ final class IntegratedStyleTestFixture {
 			Product product = productRepository.findFirstByName(RecommendedProduct.STARK_BACKPACK.getDisplayName())
 					.orElseGet(() -> productRepository.save(Product.create(
 							RecommendedProduct.STARK_BACKPACK.getDisplayName(),
-							"BACKPACK", "BLACK", "VISETOS", "STRUCTURED", null, true
+							"BACKPACK", "BLACK", "VISETOS", "STRUCTURED",
+							"https://images.mcmworldwide.com/i/mcmworldwide/MMKEAVE12BK001_01/stark-black-m?$w1000$&fmt=auto&qlt=default",
+							true
 					)));
 			productTagRepository.saveAndFlush(ProductTag.create(session, product));
 		}

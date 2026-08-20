@@ -108,7 +108,9 @@ class StyleApiIntegrationTest {
 
 		mockMvc.perform(get("/api/passport-sessions/{passportSessionId}/style-result", session.getId()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.recommendedProductCode").value(RecommendedProduct.STARK_BACKPACK.name()));
+				.andExpect(jsonPath("$.recommendedProductCode").value(RecommendedProduct.STARK_BACKPACK.name()))
+				.andExpect(jsonPath("$.recommendedProductImageUrl").value(
+						"https://images.mcmworldwide.com/i/mcmworldwide/MMKEAVE12BK001_01/stark-black-m?$w1000$&fmt=auto&qlt=default"));
 
 		String portraitBody = "{\"imageUrl\":\"https://example.com/portrait.jpg\",\"consent\":true}";
 		mockMvc.perform(post("/api/passport-sessions/{passportSessionId}/portrait", session.getId())

@@ -707,6 +707,7 @@ components:
         - cityCodeName
         - recommendedProductCode
         - recommendedProductName
+        - recommendedProductImageUrl
         - styleMood
         - styleMoodName
         - backgroundCode
@@ -723,6 +724,10 @@ components:
         cityCodeName: {type: string, example: Berlin Afterdark Nomad}
         recommendedProductCode: {$ref: '#/components/schemas/RecommendedProductCode'}
         recommendedProductName: {type: string, example: Stark Backpack}
+        recommendedProductImageUrl:
+          type: [string, 'null']
+          format: uri
+          maxLength: 1000
         styleMood: {$ref: '#/components/schemas/StyleMoodCode'}
         styleMoodName: {type: string}
         backgroundCode: {$ref: '#/components/schemas/CityBackgroundCode'}

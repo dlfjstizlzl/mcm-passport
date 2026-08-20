@@ -12,15 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class PassportStyleResultService {
 
 	private final StyleResultRepository styleResultRepository;
+	private final StyleResultResponseMapper styleResultResponseMapper;
 
-	public PassportStyleResultService(StyleResultRepository styleResultRepository) {
+	public PassportStyleResultService(
+			StyleResultRepository styleResultRepository,
+			StyleResultResponseMapper styleResultResponseMapper
+	) {
 		this.styleResultRepository = styleResultRepository;
+		this.styleResultResponseMapper = styleResultResponseMapper;
 	}
 
 	@Transactional(readOnly = true)
 	public StyleResultResponse get(Long passportSessionId) {
 		StyleResult result = styleResultRepository.findByPassportSessionId(passportSessionId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.STYLE_RESULT_NOT_FOUND));
-		return StyleResultResponse.from(result);
+		return styleResultResponseMapper.from(result);
 	}
 }
