@@ -60,11 +60,11 @@ public class GuideResponseService {
 		GuideResponse guideResponse = guideResponseRepository
 				.findByPassportSession_IdAndGuideQuestion_Id(passportSessionId, questionId)
 				.map(existing -> {
-					existing.changeOption(guideOption);
+					existing.changeAnswer(guideOption, request.answerText());
 					return existing;
 				})
 				.orElseGet(() -> guideResponseRepository.save(
-						GuideResponse.create(passportSession, guideQuestion, guideOption)
+						GuideResponse.create(passportSession, guideQuestion, guideOption, request.answerText())
 				));
 
 		return GuideResponseResponse.from(guideResponse);

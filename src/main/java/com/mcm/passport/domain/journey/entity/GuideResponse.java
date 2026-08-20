@@ -41,6 +41,9 @@ public class GuideResponse {
 	@JoinColumn(name = "guide_option_id", nullable = false)
 	private GuideOption guideOption;
 
+	@Column(name = "answer_text", length = 500)
+	private String answerText;
+
 	@Column(name = "answered_at", nullable = false)
 	private Instant answeredAt;
 
@@ -50,11 +53,13 @@ public class GuideResponse {
 	private GuideResponse(
 			PassportSession passportSession,
 			GuideQuestion guideQuestion,
-			GuideOption guideOption
+			GuideOption guideOption,
+			String answerText
 	) {
 		this.passportSession = Objects.requireNonNull(passportSession, "passportSession must not be null");
 		this.guideQuestion = Objects.requireNonNull(guideQuestion, "guideQuestion must not be null");
 		this.guideOption = Objects.requireNonNull(guideOption, "guideOption must not be null");
+		this.answerText = normalizeAnswerText(answerText);
 		this.answeredAt = Instant.now();
 	}
 
@@ -63,12 +68,33 @@ public class GuideResponse {
 			GuideQuestion guideQuestion,
 			GuideOption guideOption
 	) {
-		return new GuideResponse(passportSession, guideQuestion, guideOption);
+		return new GuideResponse(passportSession, guideQuestion, guideOption, null);
+	}
+
+	public static GuideResponse create(
+			PassportSession passportSession,
+			GuideQuestion guideQuestion,
+			GuideOption guideOption,
+			String answerText
+	) {
+		return new GuideResponse(passportSession, guideQuestion, guideOption, answerText);
 	}
 
 	public void changeOption(GuideOption guideOption) {
+		changeAnswer(guideOption, null);
+	}
+
+	public void changeAnswer(GuideOption guideOption, String answerText) {
 		this.guideOption = Objects.requireNonNull(guideOption, "guideOption must not be null");
+		this.answerText = normalizeAnswerText(answerText);
 		this.answeredAt = Instant.now();
+	}
+
+	private static String normalizeAnswerText(String answerText) {
+		if (answerText == null || answerText.isBlank()) {
+			return null;
+		}
+		return answerText.trim();
 	}
 
 	public Long getId() {
@@ -85,6 +111,10 @@ public class GuideResponse {
 
 	public GuideOption getGuideOption() {
 		return guideOption;
+	}
+
+	public String getAnswerText() {
+		return answerText;
 	}
 
 	public Instant getAnsweredAt() {

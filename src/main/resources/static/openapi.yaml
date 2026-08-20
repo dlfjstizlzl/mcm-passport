@@ -572,6 +572,7 @@ components:
       required: [optionId]
       properties:
         optionId: {type: integer, format: int64}
+        answerText: {type: [string, 'null'], maxLength: 500}
     GuideResponseResponse:
       type: object
       required: [guideResponseId, questionId, optionId, answeredAt]
@@ -579,6 +580,7 @@ components:
         guideResponseId: {type: integer, format: int64}
         questionId: {type: integer, format: int64}
         optionId: {type: integer, format: int64}
+        answerText: {type: [string, 'null']}
         answeredAt: {type: string, format: date-time}
     JourneyStampResponse:
       type: object

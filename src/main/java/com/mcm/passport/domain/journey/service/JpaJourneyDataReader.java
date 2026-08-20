@@ -39,7 +39,9 @@ public class JpaJourneyDataReader implements JourneyDataReader {
 						response.getGuideQuestion().getJourneySpot().getCode(),
 						response.getGuideQuestion().getCode(),
 						response.getGuideOption().getCode(),
-						response.getGuideOption().getLabel()
+						response.getAnswerText() == null
+								? response.getGuideOption().getLabel()
+								: response.getGuideOption().getLabel() + " / 직접 답변: " + response.getAnswerText()
 				))
 				.toList();
 

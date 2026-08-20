@@ -7,6 +7,8 @@ import com.mcm.passport.domain.journey.repository.GuideOptionRepository;
 import com.mcm.passport.domain.journey.repository.GuideQuestionRepository;
 import com.mcm.passport.domain.journey.repository.GuideResponseRepository;
 import com.mcm.passport.domain.journey.repository.JourneySpotRepository;
+import com.mcm.passport.domain.journey.service.JourneyDataReader;
+import com.mcm.passport.domain.journey.service.JourneyDataSnapshot;
 import com.mcm.passport.domain.passport.entity.PassportCard;
 import com.mcm.passport.domain.passport.entity.PassportSession;
 import com.mcm.passport.domain.passport.repository.PassportCardRepository;
@@ -54,6 +56,9 @@ class GuideResponseApiIntegrationTest {
 	@Autowired
 	private GuideResponseRepository guideResponseRepository;
 
+	@Autowired
+	private JourneyDataReader journeyDataReader;
+
 	private MockMvc mockMvc;
 
 	@BeforeEach
@@ -73,14 +78,20 @@ class GuideResponseApiIntegrationTest {
 
 		mockMvc.perform(put(endpoint(), session.getId(), question.getId())
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(optionBody(firstOption)))
+						.content(optionBody(firstOption, "밤거리처럼 선명한 분위기가 좋아요")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.guideResponseId").isNumber())
 				.andExpect(jsonPath("$.questionId").value(question.getId()))
 				.andExpect(jsonPath("$.optionId").value(firstOption.getId()))
+				.andExpect(jsonPath("$.answerText").value("밤거리처럼 선명한 분위기가 좋아요"))
 				.andExpect(jsonPath("$.answeredAt").isNotEmpty());
 
 		Long responseId = guideResponseRepository.findAll().getFirst().getId();
+		JourneyDataSnapshot.ResponseSignal signal = journeyDataReader.read(session.getId()).responses().getFirst();
+		assertThat(signal.answerText())
+				.contains(firstOption.getLabel())
+				.contains("밤거리처럼 선명한 분위기가 좋아요");
+
 		mockMvc.perform(put(endpoint(), session.getId(), question.getId())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(optionBody(changedOption)))
@@ -91,6 +102,7 @@ class GuideResponseApiIntegrationTest {
 		assertThat(guideResponseRepository.count()).isEqualTo(1);
 		assertThat(guideResponseRepository.findById(responseId).orElseThrow().getGuideOption().getId())
 				.isEqualTo(changedOption.getId());
+		assertThat(guideResponseRepository.findById(responseId).orElseThrow().getAnswerText()).isNull();
 	}
 
 	@Test
@@ -185,6 +197,10 @@ class GuideResponseApiIntegrationTest {
 
 	private String optionBody(GuideOption option) {
 		return "{\"optionId\":" + option.getId() + "}";
+	}
+
+	private String optionBody(GuideOption option, String answerText) {
+		return "{\"optionId\":" + option.getId() + ",\"answerText\":\"" + answerText + "\"}";
 	}
 
 	private String endpoint() {

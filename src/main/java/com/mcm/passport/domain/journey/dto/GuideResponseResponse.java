@@ -8,6 +8,7 @@ public record GuideResponseResponse(
 		Long guideResponseId,
 		Long questionId,
 		Long optionId,
+		String answerText,
 		Instant answeredAt
 ) {
 
@@ -16,6 +17,7 @@ public record GuideResponseResponse(
 				guideResponse.getId(),
 				guideResponse.getGuideQuestion().getId(),
 				guideResponse.getGuideOption().getId(),
+				guideResponse.getAnswerText(),
 				guideResponse.getAnsweredAt()
 		);
 	}
