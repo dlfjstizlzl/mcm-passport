@@ -38,7 +38,7 @@ public class JourneyGuideDataInitializer implements ApplicationRunner {
 		JourneySpot originGate = spot(
 				"ORIGIN_GATE",
 				"Origin Gate",
-				"여정을 시작하고 MCM의 브랜드 감각을 발견하는 공간",
+				"Origin Gate는 고객님께서 MCM의 여행, 이동, 도시성, 헤리티지 감성을 처음 경험하시는 공간입니다.",
 				1
 		);
 		question(originGate, new QuestionSeed(
@@ -67,7 +67,7 @@ public class JourneyGuideDataInitializer implements ApplicationRunner {
 		JourneySpot materialLounge = spot(
 				"MATERIAL_LOUNGE",
 				"Material Lounge",
-				"MCM의 소재, 패턴, 컬러와 질감을 가까이 경험하는 공간",
+				"Material Lounge는 고객님께서 MCM 제품의 소재, 패턴, 컬러, 질감을 가까이 보고 만져보시는 공간입니다.",
 				2
 		);
 		question(materialLounge, new QuestionSeed(
@@ -96,7 +96,7 @@ public class JourneyGuideDataInitializer implements ApplicationRunner {
 		JourneySpot movementDeck = spot(
 				"MOVEMENT_DECK",
 				"Movement Deck",
-				"제품을 직접 착용하고 생활 속 이동 장면을 상상하는 공간",
+				"Movement Deck은 고객님께서 제품을 직접 들어보고, 움직여보며 실제 생활 장면 속 어울림을 확인하시는 공간입니다.",
 				3
 		);
 		question(movementDeck, new QuestionSeed(
@@ -115,7 +115,7 @@ public class JourneyGuideDataInitializer implements ApplicationRunner {
 		JourneySpot cityMoodRoom = spot(
 				"CITY_MOOD_ROOM",
 				"City Mood Room",
-				"도시별 사운드, 조명, 컬러와 스타일 장면을 경험하는 공간",
+				"City Mood Room은 Guide가 해석한 도시 무드를 통해 고객님께서 스타일 감각을 확인하시는 공간입니다.",
 				4
 		);
 		question(cityMoodRoom, new QuestionSeed(
@@ -134,10 +134,12 @@ public class JourneyGuideDataInitializer implements ApplicationRunner {
 	}
 
 	private JourneySpot spot(String code, String name, String description, int sequence) {
-		return journeySpotRepository.findByCode(code)
+		JourneySpot journeySpot = journeySpotRepository.findByCode(code)
 				.orElseGet(() -> journeySpotRepository.save(
 						JourneySpot.create(code, name, description, sequence, true)
 				));
+		journeySpot.updateDescription(description);
+		return journeySpot;
 	}
 
 	private void question(JourneySpot journeySpot, QuestionSeed seed) {

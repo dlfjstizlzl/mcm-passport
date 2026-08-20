@@ -106,6 +106,10 @@ public class JourneySpot {
 		return description;
 	}
 
+	public void updateDescription(String description) {
+		this.description = requireText(description, "description");
+	}
+
 	public int getSequence() {
 		return sequence;
 	}

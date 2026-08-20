@@ -52,9 +52,13 @@ class JourneySpotApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(4))
 				.andExpect(jsonPath("$[0].code").value("ORIGIN_GATE"))
+				.andExpect(jsonPath("$[0].description").value("Origin Gate는 고객님께서 MCM의 여행, 이동, 도시성, 헤리티지 감성을 처음 경험하시는 공간입니다."))
 				.andExpect(jsonPath("$[1].code").value("MATERIAL_LOUNGE"))
+				.andExpect(jsonPath("$[1].description").value("Material Lounge는 고객님께서 MCM 제품의 소재, 패턴, 컬러, 질감을 가까이 보고 만져보시는 공간입니다."))
 				.andExpect(jsonPath("$[2].code").value("MOVEMENT_DECK"))
-				.andExpect(jsonPath("$[3].code").value("CITY_MOOD_ROOM"));
+				.andExpect(jsonPath("$[2].description").value("Movement Deck은 고객님께서 제품을 직접 들어보고, 움직여보며 실제 생활 장면 속 어울림을 확인하시는 공간입니다."))
+				.andExpect(jsonPath("$[3].code").value("CITY_MOOD_ROOM"))
+				.andExpect(jsonPath("$[3].description").value("City Mood Room은 Guide가 해석한 도시 무드를 통해 고객님께서 스타일 감각을 확인하시는 공간입니다."));
 	}
 
 	@Test
