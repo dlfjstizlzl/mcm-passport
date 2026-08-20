@@ -22,6 +22,7 @@ public class ReferenceDataInitializer implements ApplicationRunner {
 
 	public static final String TEST_CARD_UID = "MCM-GUIDE-TEST-001";
 	public static final String TEST_PRODUCT_NAME = "Stark Backpack";
+	public static final String SECOND_TEST_PRODUCT_NAME = "Aren Crossbody";
 
 	private final PassportCardRepository passportCardRepository;
 	private final ProductRepository productRepository;
@@ -48,6 +49,17 @@ public class ReferenceDataInitializer implements ApplicationRunner {
 						"VISETOS",
 						"STRUCTURED",
 						"https://example.com/stark.jpg",
+						true
+				)));
+
+		productRepository.findFirstByName(SECOND_TEST_PRODUCT_NAME)
+				.orElseGet(() -> productRepository.save(Product.create(
+						SECOND_TEST_PRODUCT_NAME,
+						"CROSSBODY",
+						"COGNAC",
+						"VISETOS",
+						"COMPACT",
+						"https://example.com/aren-crossbody.jpg",
 						true
 				)));
 	}
