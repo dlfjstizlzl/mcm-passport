@@ -10,7 +10,7 @@ public class WebConfig implements WebMvcConfigurer {
 
 	private final String[] allowedOrigins;
 
-	public WebConfig(@Value("${mcm.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}") String[] allowedOrigins) {
+	public WebConfig(@Value("${mcm.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,https://hackathonfront.devdlfjstizlzl.xyz}") String[] allowedOrigins) {
 		this.allowedOrigins = allowedOrigins;
 	}
 

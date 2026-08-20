@@ -10,6 +10,6 @@ spring:
 
 mcm:
   cors:
-    allowed-origins: http://localhost:3000,http://127.0.0.1:3000,https://*.trycloudflare.com
+    allowed-origins: http://localhost:3000,http://127.0.0.1:3000,https://*.trycloudflare.com,https://hackathonfront.devdlfjstizlzl.xyz
   passport:
     allow-virtual-cards: true

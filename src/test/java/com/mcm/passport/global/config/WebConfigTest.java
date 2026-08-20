@@ -31,5 +31,15 @@ class WebConfigTest {
 				.andExpect(status().isOk())
 				.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"))
 				.andExpect(header().string("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS"));
+
+		mockMvc.perform(options("/api/passport-sessions")
+					.header("Origin", "https://hackathonfront.devdlfjstizlzl.xyz")
+					.header("Access-Control-Request-Method", "POST")
+					.header("Access-Control-Request-Headers", "Content-Type"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(
+						"Access-Control-Allow-Origin",
+						"https://hackathonfront.devdlfjstizlzl.xyz"
+				));
 	}
 }
