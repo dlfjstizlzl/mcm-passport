@@ -65,6 +65,7 @@ class ProductTagApiIntegrationTest {
 				.andExpect(jsonPath("$.id").value(product.getId()))
 				.andExpect(jsonPath("$.name").value("Stark Backpack"))
 				.andExpect(jsonPath("$.category").value("BACKPACK"))
+				.andExpect(jsonPath("$.description").value("MCM의 아이코닉한 Visetos 소재와 구조적인 실루엣이 돋보이는 블랙 백팩입니다."))
 				.andExpect(jsonPath("$.color").value("BLACK"))
 				.andExpect(jsonPath("$.material").value("VISETOS"))
 				.andExpect(jsonPath("$.silhouette").value("STRUCTURED"))
@@ -158,6 +159,7 @@ class ProductTagApiIntegrationTest {
 		return productRepository.saveAndFlush(Product.create(
 				"Stark Backpack",
 				"BACKPACK",
+				"MCM의 아이코닉한 Visetos 소재와 구조적인 실루엣이 돋보이는 블랙 백팩입니다.",
 				"BLACK",
 				"VISETOS",
 				"STRUCTURED",

@@ -594,6 +594,7 @@ components:
         id: {type: integer, format: int64}
         name: {type: string}
         category: {type: string}
+        description: {type: [string, 'null'], maxLength: 1000}
         color: {type: [string, 'null']}
         material: {type: [string, 'null']}
         silhouette: {type: [string, 'null']}
@@ -618,6 +619,7 @@ components:
         id: {type: integer, format: int64}
         name: {type: string}
         category: {type: string}
+        description: {type: [string, 'null'], maxLength: 1000}
         color: {type: [string, 'null']}
         material: {type: [string, 'null']}
         silhouette: {type: [string, 'null']}

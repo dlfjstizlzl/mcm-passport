@@ -22,6 +22,7 @@ public record ProductTagCreateResponse(
 			Long id,
 			String name,
 			String category,
+			String description,
 			String color,
 			String material,
 			String silhouette,
@@ -29,8 +30,8 @@ public record ProductTagCreateResponse(
 	) {
 		public static TaggedProductResponse from(Product product) {
 			return new TaggedProductResponse(
-					product.getId(), product.getName(), product.getCategory(), product.getColor(),
-					product.getMaterial(), product.getSilhouette(), product.getImageUrl()
+					product.getId(), product.getName(), product.getCategory(), product.getDescription(),
+					product.getColor(), product.getMaterial(), product.getSilhouette(), product.getImageUrl()
 			);
 		}
 	}

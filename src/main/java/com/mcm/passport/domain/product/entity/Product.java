@@ -24,6 +24,9 @@ public class Product {
 	@Column(nullable = false, length = 100)
 	private String category;
 
+	@Column(length = 1000)
+	private String description;
+
 	@Column(length = 100)
 	private String color;
 
@@ -48,6 +51,7 @@ public class Product {
 	private Product(
 			String name,
 			String category,
+			String description,
 			String color,
 			String material,
 			String silhouette,
@@ -56,6 +60,7 @@ public class Product {
 	) {
 		this.name = requireText(name, "name");
 		this.category = requireText(category, "category");
+		this.description = normalizeNullable(description);
 		this.color = normalizeNullable(color);
 		this.material = normalizeNullable(material);
 		this.silhouette = normalizeNullable(silhouette);
@@ -73,7 +78,20 @@ public class Product {
 			String imageUrl,
 			boolean recommendable
 	) {
-		return new Product(name, category, color, material, silhouette, imageUrl, recommendable);
+		return create(name, category, null, color, material, silhouette, imageUrl, recommendable);
+	}
+
+	public static Product create(
+			String name,
+			String category,
+			String description,
+			String color,
+			String material,
+			String silhouette,
+			String imageUrl,
+			boolean recommendable
+	) {
+		return new Product(name, category, description, color, material, silhouette, imageUrl, recommendable);
 	}
 
 	private static String requireText(String value, String fieldName) {
@@ -97,6 +115,14 @@ public class Product {
 
 	public String getCategory() {
 		return category;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void updateDescription(String description) {
+		this.description = normalizeNullable(description);
 	}
 
 	public String getColor() {

@@ -23,6 +23,8 @@ public class ReferenceDataInitializer implements ApplicationRunner {
 	public static final String TEST_CARD_UID = "MCM-GUIDE-TEST-001";
 	public static final String TEST_PRODUCT_NAME = "Stark Backpack";
 	public static final String SECOND_TEST_PRODUCT_NAME = "Aren Crossbody";
+	public static final String TEST_PRODUCT_DESCRIPTION = "MCM의 아이코닉한 Visetos 소재와 구조적인 실루엣이 돋보이는 블랙 백팩입니다.";
+	public static final String SECOND_TEST_PRODUCT_DESCRIPTION = "아이코닉한 Visetos 소재와 컴팩트한 실루엣을 담은 코냑 컬러 크로스바디 백입니다.";
 
 	private final PassportCardRepository passportCardRepository;
 	private final ProductRepository productRepository;
@@ -41,10 +43,11 @@ public class ReferenceDataInitializer implements ApplicationRunner {
 		passportCardRepository.findByCardUid(TEST_CARD_UID)
 				.orElseGet(() -> passportCardRepository.save(PassportCard.issue(TEST_CARD_UID)));
 
-		productRepository.findFirstByName(TEST_PRODUCT_NAME)
+		Product starkBackpack = productRepository.findFirstByName(TEST_PRODUCT_NAME)
 				.orElseGet(() -> productRepository.save(Product.create(
 						TEST_PRODUCT_NAME,
 						"BACKPACK",
+						TEST_PRODUCT_DESCRIPTION,
 						"BLACK",
 						"VISETOS",
 						"STRUCTURED",
@@ -52,15 +55,23 @@ public class ReferenceDataInitializer implements ApplicationRunner {
 						true
 				)));
 
-		productRepository.findFirstByName(SECOND_TEST_PRODUCT_NAME)
+		if (starkBackpack.getDescription() == null) {
+			starkBackpack.updateDescription(TEST_PRODUCT_DESCRIPTION);
+		}
+
+		Product arenCrossbody = productRepository.findFirstByName(SECOND_TEST_PRODUCT_NAME)
 				.orElseGet(() -> productRepository.save(Product.create(
 						SECOND_TEST_PRODUCT_NAME,
 						"CROSSBODY",
+						SECOND_TEST_PRODUCT_DESCRIPTION,
 						"COGNAC",
 						"VISETOS",
 						"COMPACT",
 						"https://example.com/aren-crossbody.jpg",
 						true
 				)));
+		if (arenCrossbody.getDescription() == null) {
+			arenCrossbody.updateDescription(SECOND_TEST_PRODUCT_DESCRIPTION);
+		}
 	}
 }
